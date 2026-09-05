@@ -26,6 +26,28 @@ Confirmation
 Execute domain action
 ```
 
+If a control phrase is unknown, the flow changes to learning instead of guessing:
+
+```text
+Unknown phrase
+      ↓
+Inline learning card
+      ↓
+Phrase is prefilled
+      ↓
+Manager selects a known system concept
+      ↓
+Optional deterministic suggestions are shown
+      ↓
+Preview
+      ↓
+Confirmation
+      ↓
+Save alias
+      ↓
+Future commands understand the phrase
+```
+
 ## Why this is not a general LLM
 
 TLE does not generate arbitrary answers and does not guess an unknown business intent.
@@ -36,6 +58,7 @@ It has:
 - explicit intent patterns;
 - deterministic slot extraction;
 - runtime custom aliases;
+- inline supervised learning;
 - no model download;
 - no API key;
 - no internet requirement;
@@ -90,9 +113,35 @@ The canonical definitions live in:
 src/ai/language-engine.ts
 ```
 
+## Inline supervised learning
+
+When a sentence does not match an existing command, Tiny AI no longer ends with a generic error. It opens a small learning step in the same command surface.
+
+Example:
+
+```text
+پروژه انبار با بودجه ۲۰۰ میلیون راه بینداز
+```
+
+If `راه بینداز` is unknown, Tiny AI can return:
+
+```text
+عبارت «راه بینداز» را نمی‌شناسم.
+این عبارت مربوط به کدام بخش TinyManager است؟
+```
+
+The learning card contains:
+
+1. the detected phrase, already filled in and editable;
+2. a list of concepts currently available in TinyManager;
+3. optional deterministic concept suggestions based on the known context;
+4. continue / cancel actions.
+
+The manager remains the teacher. A suggestion never becomes training data until the manager selects a concept and confirms the mutation.
+
 ## Runtime vocabulary teaching
 
-Managers can extend the engine from the same command bar instead of opening a configuration wizard.
+Managers can also explicitly extend the engine from the same command bar.
 
 Persian example:
 
@@ -122,6 +171,38 @@ core.language.aliases.v1
 
 Therefore they are automatically included in TinyManager backup/restore.
 
+## Suggestion layer
+
+Suggestions are deliberately separate from recognition.
+
+Current level:
+
+- TLE may suggest concepts from explicit context.
+- Example: project + budget + unknown trailing action can suggest `action.create`.
+- The manager must still choose and confirm.
+
+Future levels can become richer without turning the engine into a general-purpose LLM:
+
+### Level 1 — contextual language suggestions
+
+Suggest the most likely concept for an unknown phrase using recognized concepts in the same sentence.
+
+### Level 2 — learned organization vocabulary
+
+Rank suggestions using aliases previously confirmed by the manager or organization.
+
+### Level 3 — management suggestions
+
+A separate local rule/suggestion layer may inspect structured TinyManager data and propose useful next actions, for example:
+
+- a delegated task has no deadline;
+- a Waiting For item has been untouched for too long;
+- a project has several high risks and an approaching deadline;
+- a weekly review is due;
+- a meeting appears expensive relative to its duration and participant count.
+
+These are suggestions, not automatic mutations. A manager always decides whether to act.
+
 ## Language scoping
 
 Aliases are language-specific.
@@ -142,11 +223,13 @@ It also ignores presentation-direction markers and normalizes whitespace/punctua
 ## Safety rules
 
 1. Unknown phrases do not create guessed intents.
-2. A read-only calculation may return immediately.
-3. A data mutation requires preview + confirmation.
-4. Only one missing required field is requested at a time.
-5. Custom vocabulary is persisted only after confirmation.
-6. Domain logic remains inside the responsible Core service or module package; TLE only routes and extracts.
+2. Unknown phrases can enter supervised inline learning.
+3. A suggestion is never saved automatically.
+4. A read-only calculation may return immediately.
+5. A data mutation requires preview + confirmation.
+6. Only one missing required field is requested at a time.
+7. Custom vocabulary is persisted only after confirmation.
+8. Domain logic remains inside the responsible Core service or module package; TLE only routes and extracts.
 
 ## Examples
 
@@ -177,18 +260,14 @@ It also ignores presentation-direction markers and normalizes whitespace/punctua
 ### Unknown control wording
 
 ```text
-پروژه نمایشگاه را راه بینداز
+پروژه نمایشگاه با بودجه ۳۰۰ میلیون راه بینداز
 ```
 
-If `راه بینداز` has not been defined as an alias of `action.create`, no create intent is guessed.
+If `راه بینداز` has not been defined, no create intent is guessed. Tiny AI opens the inline learning card and can suggest `ایجاد` from the known project + budget context.
 
 ### Teach and reuse
 
-```text
-برای «ایجاد» واژه «راه بینداز» را اضافه کن
-```
-
-After confirmation, the same wording can participate in project-create commands.
+After the manager selects `ایجاد`, reviews the preview and confirms, the phrase becomes an alias of `action.create` and can immediately participate in future commands.
 
 ## Future extensions
 
@@ -198,8 +277,10 @@ The same architecture can support:
 - alias removal and disabling;
 - organization-specific vocabulary packs;
 - per-module vocabulary contributions;
+- suggestion ranking from confirmed training history;
 - date phrases backed by Webtanan Jalali Date Engine;
 - Shared People aliases and nicknames;
-- import/export of vocabulary packs.
+- import/export of vocabulary packs;
+- proactive management suggestions generated from structured local data.
 
-The engine should remain deterministic even as its vocabulary grows.
+The recognition engine should remain deterministic even as the vocabulary and suggestion layers grow.
