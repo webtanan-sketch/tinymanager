@@ -60,7 +60,12 @@ export function TinyAssistantCommandBar() {
     if (!learning || !learningConcept || !learningPhrase.trim() || busy) return;
     setBusy(true);
     try {
-      const result = await orchestrator.prepareLanguageAlias(learningPhrase, learningConcept, learning.locale);
+      const result = await orchestrator.prepareLanguageAlias(
+        learningPhrase,
+        learningConcept,
+        learning.locale,
+        learning.originalText,
+      );
       setDraft(result.draft);
       setReply({ text: result.text, kind: result.kind });
       setLearning(null);
