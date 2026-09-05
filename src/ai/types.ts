@@ -36,7 +36,7 @@ export interface TinyAssistantInterpretation {
   actionId: string | null;
   confidence: number;
   values: Record<string, TinyAssistantValue>;
-  source: 'provider' | 'local';
+  source: 'local';
   reason?: string;
 }
 
@@ -45,22 +45,6 @@ export interface TinyAssistantDraft {
   values: Record<string, TinyAssistantValue>;
   missingFieldIds: string[];
   phase: 'collecting' | 'confirming';
-}
-
-export interface TinyAssistantProviderInput {
-  text: string;
-  locale: TinyLocale;
-  actions: Array<{
-    id: string;
-    moduleId: string;
-    title: { fa: string; en: string };
-    fields: TinyAssistantFieldDefinition[];
-  }>;
-}
-
-export interface TinyAssistantProvider {
-  id: string;
-  interpret(input: TinyAssistantProviderInput): Promise<TinyAssistantInterpretation | null>;
 }
 
 export interface TinyAssistantTurn {
