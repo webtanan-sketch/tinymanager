@@ -13,7 +13,7 @@ export interface TinyAssistantReply {
   text: string;
   kind: 'message' | 'question' | 'confirmation' | 'success' | 'error';
   draft: TinyAssistantDraft | null;
-  route?: string;
+  route?: string | undefined;
 }
 
 const affirmative = (text: string): boolean =>
