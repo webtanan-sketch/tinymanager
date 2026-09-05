@@ -1,4 +1,5 @@
 import { calculateMeetingCost, type TinyMeetingCurrency } from 'tiny-meeting-cost';
+import { TinyWaitingRepository } from 'tiny-waiting';
 import { TinyManagerModuleRegistry } from '../core/module-registry';
 import { TinyProjectRepository, type TinyProjectCurrency } from '../core/projects';
 import { moduleCatalog } from '../modules/catalog';
@@ -131,6 +132,46 @@ const calculateMeeting: TinyAssistantActionDefinition = {
   },
 };
 
+const createWaiting: TinyAssistantActionDefinition = {
+  id: 'tiny-waiting.create',
+  moduleId: 'tiny-waiting',
+  title: { fa: 'ثبت منتظر پاسخ', en: 'Create Waiting For item' },
+  description: {
+    fa: 'ثبت چیزی که ادامه آن منتظر پاسخ شخص دیگری است.',
+    en: 'Track something that cannot continue until somebody else responds.',
+  },
+  fields: [
+    { id: 'subject', label: { fa: 'منتظر چه چیزی هستی؟', en: 'What are you waiting for?' }, required: true, type: 'text' },
+    { id: 'waitingOn', label: { fa: 'از چه کسی؟', en: 'Who are you waiting on?' }, required: true, type: 'text' },
+  ],
+  requiresConfirmation: true,
+  summarize(values, locale) {
+    const subject = asString(values.subject);
+    const waitingOn = asString(values.waitingOn);
+    return locale === 'fa'
+      ? `ثبت «${subject}» در منتظر پاسخ از «${waitingOn}»`
+      : `Track “${subject}” as waiting on “${waitingOn}”`;
+  },
+  async execute(values, context) {
+    const repository = new TinyWaitingRepository(context.storage);
+    const item = await repository.create({
+      subject: asString(values.subject),
+      waitingOn: asString(values.waitingOn),
+    });
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('tinymanager:waiting-changed'));
+    }
+    return {
+      ok: true,
+      entityId: item.id,
+      message: {
+        fa: `«${item.subject}» ثبت شد؛ منتظر پاسخ ${item.waitingOn} هستی.`,
+        en: `“${item.subject}” is now tracked as waiting on ${item.waitingOn}.`,
+      },
+    };
+  },
+};
+
 const moduleToggle = (enabled: boolean): TinyAssistantActionDefinition => ({
   id: enabled ? 'core.module.enable' : 'core.module.disable',
   moduleId: 'core',
@@ -227,6 +268,7 @@ const openModule: TinyAssistantActionDefinition = {
 export const assistantActions: TinyAssistantActionDefinition[] = [
   createProject,
   calculateMeeting,
+  createWaiting,
   moduleToggle(true),
   moduleToggle(false),
   openModule,
