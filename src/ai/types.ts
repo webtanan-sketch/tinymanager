@@ -15,6 +15,8 @@ export interface TinyAssistantActionDefinition {
   title: { fa: string; en: string };
   description: { fa: string; en: string };
   fields: TinyAssistantFieldDefinition[];
+  requiresConfirmation: boolean;
+  summarize(values: Record<string, TinyAssistantValue>, locale: TinyLocale): string;
   execute(values: Record<string, TinyAssistantValue>, context: TinyAssistantExecutionContext): Promise<TinyAssistantExecutionResult>;
 }
 
