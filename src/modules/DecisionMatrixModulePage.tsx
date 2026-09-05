@@ -9,6 +9,7 @@ import 'tiny-decision-matrix/style.css';
 import { tinyDateService } from '../core/date-service';
 import { useI18n } from '../core/i18n';
 import { tinyStorage } from '../core/storage';
+import './module-host.css';
 
 const STORAGE_KEY = 'module.tiny-decision-matrix.state';
 
