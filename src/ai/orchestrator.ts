@@ -1,11 +1,11 @@
 import type { TinyLocale, TinyManagerStorage } from '../core/types';
-import { getAssistantAction, assistantActions } from './action-registry';
+import { getAssistantAction } from './action-registry';
+import { TinyLanguageRepository, tinyLanguageMatches, type TinyLanguageLexicon } from './language-engine';
 import { detectCurrency, parseAmount } from './number-parser';
 import { interpretLocally } from './local-interpreter';
 import type {
   TinyAssistantDraft,
   TinyAssistantInterpretation,
-  TinyAssistantProvider,
   TinyAssistantValue,
 } from './types';
 
@@ -15,12 +15,6 @@ export interface TinyAssistantReply {
   draft: TinyAssistantDraft | null;
   route?: string | undefined;
 }
-
-const affirmative = (text: string): boolean =>
-  /^(?:بله|آره|اوکی|باشه|تایید|تأیید|تایید کن|تأیید کن|ثبت کن|انجام بده|yes|ok|okay|confirm|do it)$/iu.test(text.trim());
-
-const negative = (text: string): boolean =>
-  /^(?:نه|خیر|لغو|لغو کن|بیخیال|cancel|no|stop)$/iu.test(text.trim());
 
 const hasValue = (value: TinyAssistantValue | undefined): boolean =>
   value !== undefined && value !== null && value !== '' && !(typeof value === 'number' && Number.isNaN(value));
@@ -79,32 +73,19 @@ const fillMissingValue = (
 };
 
 export class TinyAssistantOrchestrator {
-  constructor(
-    private readonly storage: TinyManagerStorage,
-    private readonly provider?: TinyAssistantProvider,
-  ) {}
+  private readonly language: TinyLanguageRepository;
+
+  constructor(private readonly storage: TinyManagerStorage) {
+    this.language = new TinyLanguageRepository(storage);
+  }
+
+  private async loadLexicon(): Promise<TinyLanguageLexicon> {
+    return this.language.load();
+  }
 
   private async interpret(text: string, locale: TinyLocale): Promise<TinyAssistantInterpretation> {
-    if (this.provider) {
-      try {
-        const result = await this.provider.interpret({
-          text,
-          locale,
-          actions: assistantActions.map((action) => ({
-            id: action.id,
-            moduleId: action.moduleId,
-            title: action.title,
-            fields: action.fields,
-          })),
-        });
-        if (result?.actionId && result.confidence >= 0.7 && getAssistantAction(result.actionId)) {
-          return { ...result, source: 'provider' };
-        }
-      } catch {
-        // The local interpreter remains available if a remote/local model adapter fails.
-      }
-    }
-    return interpretLocally(text, locale);
+    const lexicon = await this.loadLexicon();
+    return interpretLocally(text, locale, lexicon);
   }
 
   async submit(
@@ -121,7 +102,11 @@ export class TinyAssistantOrchestrator {
       };
     }
 
-    if (draft && negative(cleaned)) {
+    const lexicon = await this.loadLexicon();
+    const affirmative = tinyLanguageMatches(cleaned, 'system.confirm', locale, lexicon);
+    const negative = tinyLanguageMatches(cleaned, 'system.cancel', locale, lexicon);
+
+    if (draft && negative) {
       return {
         text: locale === 'fa' ? 'لغو شد؛ چیزی ذخیره نشد.' : 'Cancelled. Nothing was saved.',
         kind: 'message',
@@ -130,11 +115,11 @@ export class TinyAssistantOrchestrator {
     }
 
     if (draft?.phase === 'confirming') {
-      if (!affirmative(cleaned)) {
+      if (!affirmative) {
         return {
           text: locale === 'fa'
-            ? 'اگر اطلاعات درست است «تأیید» بنویس؛ برای لغو «لغو» بنویس.'
-            : 'Reply “confirm” if it looks right, or “cancel” to stop.',
+            ? 'اگر اطلاعات درست است یکی از واژه‌های تأیید تعریف‌شده را بنویس؛ برای توقف از واژه لغو استفاده کن.'
+            : 'Use one of the defined confirmation words if this is correct, or a cancel word to stop.',
           kind: 'confirmation',
           draft,
         };
@@ -178,8 +163,8 @@ export class TinyAssistantOrchestrator {
     if (!interpretation.actionId) {
       return {
         text: locale === 'fa'
-          ? 'متوجه نشدم این درخواست مربوط به کدام بخش است. ساده‌تر بنویس؛ مثلاً «پروژه نمایشگاه با بودجه ۳۰۰ میلیون ایجاد کن» یا «ماژول ریسک را فعال کن».'
-          : 'I could not determine the right action. Try something simpler, such as “create project Expo with a 300,000 budget” or “enable the Risk module”.',
+          ? 'این جمله با واژه‌ها و الگوهای تعریف‌شده تطبیق ندارد. می‌توانی جمله را ساده‌تر بنویسی یا یک مترادف جدید به موتور زبان یاد بدهی.'
+          : 'This sentence does not match the defined words and patterns. Use a simpler command or teach the language engine a new alias.',
         kind: 'question',
         draft: null,
       };
