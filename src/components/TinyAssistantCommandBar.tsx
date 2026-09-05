@@ -1,7 +1,6 @@
 import { Check, CornerDownLeft, Sparkles, X } from 'lucide-react';
 import { useMemo, useState, type FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { createConfiguredAssistantProvider } from '../ai/http-provider';
 import { TinyAssistantOrchestrator } from '../ai/orchestrator';
 import type { TinyAssistantDraft } from '../ai/types';
 import { useI18n } from '../core/i18n';
@@ -15,10 +14,7 @@ interface CurrentReply {
 export function TinyAssistantCommandBar() {
   const { locale, t } = useI18n();
   const navigate = useNavigate();
-  const orchestrator = useMemo(
-    () => new TinyAssistantOrchestrator(tinyStorage, createConfiguredAssistantProvider()),
-    [],
-  );
+  const orchestrator = useMemo(() => new TinyAssistantOrchestrator(tinyStorage), []);
   const [input, setInput] = useState('');
   const [draft, setDraft] = useState<TinyAssistantDraft | null>(null);
   const [lastRequest, setLastRequest] = useState('');
@@ -80,7 +76,7 @@ export function TinyAssistantCommandBar() {
               <span className="tm-ai-mark"><Sparkles size={15} /></span>
               <div>
                 <strong>Tiny AI</strong>
-                <small>{locale === 'fa' ? 'فرمان مدیریتی هوشمند' : 'Smart management command'}</small>
+                <small>{locale === 'fa' ? 'موتور زبان محدود و قابل تعریف' : 'Controlled, configurable language engine'}</small>
               </div>
             </div>
             <button type="button" className="tm-ai-close" onClick={() => setOpen(false)} aria-label={locale === 'fa' ? 'بستن' : 'Close'}>
@@ -90,12 +86,12 @@ export function TinyAssistantCommandBar() {
 
           {!reply ? (
             <div className="tm-ai-empty">
-              <p>{locale === 'fa' ? 'نیازی به پیدا کردن فرم و منو نیست. درخواستت را ساده بنویس.' : 'Skip forms and menus. Write the request in plain language.'}</p>
+              <p>{locale === 'fa' ? 'فقط واژه‌ها و الگوهای تعریف‌شده فهمیده می‌شوند؛ اگر لازم بود یک مترادف جدید به موتور یاد بده.' : 'Only defined words and patterns are recognized. You can teach the engine new aliases when needed.'}</p>
               <button type="button" onClick={() => setInput(locale === 'fa' ? 'پروژه نمایشگاه با بودجه ۳۰۰ میلیون ایجاد کن' : 'Create project Expo with a 300000 budget')}>
                 {locale === 'fa' ? 'نمونه: ایجاد پروژه' : 'Example: create a project'}
               </button>
-              <button type="button" onClick={() => setInput(locale === 'fa' ? 'ماژول ریسک را فعال کن' : 'Enable the Risk module')}>
-                {locale === 'fa' ? 'نمونه: فعال‌سازی ماژول' : 'Example: enable a module'}
+              <button type="button" onClick={() => setInput(locale === 'fa' ? 'برای «ایجاد» واژه «راه بینداز» را اضافه کن' : 'add word "launch" for "create"')}>
+                {locale === 'fa' ? 'نمونه: تعریف مترادف' : 'Example: teach an alias'}
               </button>
             </div>
           ) : (
