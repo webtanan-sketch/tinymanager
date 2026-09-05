@@ -8,10 +8,10 @@ import type {
   TinyAssistantValue,
 } from './types';
 
-const asString = (value: TinyAssistantValue): string => typeof value === 'string' ? value : '';
-const asNumber = (value: TinyAssistantValue): number => typeof value === 'number' ? value : Number.NaN;
+const asString = (value: TinyAssistantValue | undefined): string => typeof value === 'string' ? value : '';
+const asNumber = (value: TinyAssistantValue | undefined): number => typeof value === 'number' ? value : Number.NaN;
 
-const currencyOf = (value: TinyAssistantValue): TinyProjectCurrency => {
+const currencyOf = (value: TinyAssistantValue | undefined): TinyProjectCurrency => {
   if (value === 'TOMAN' || value === 'IRR' || value === 'USD' || value === 'EUR' || value === 'OTHER') return value;
   return 'OTHER';
 };
