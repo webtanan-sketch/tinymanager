@@ -164,8 +164,8 @@ const extractTeachValues = (
         /(?:add|learn)\s+(?:the\s+)?(?:word|phrase)?\s*["']?(.+?)["']?\s+(?:for|as)\s+["']?(.+?)["']?(?:\s|$)/i,
       ];
 
-  for (let index = 0; index < patterns.length; index += 1) {
-    const match = text.match(patterns[index]);
+  for (const [index, pattern] of patterns.entries()) {
+    const match = text.match(pattern);
     if (!match?.[1] || !match?.[2]) continue;
     const swapped = locale === 'fa' && index === 1;
     const phrase = (swapped ? match[2] : match[1]).trim();
