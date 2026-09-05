@@ -37,6 +37,40 @@ const projectNameFromEnglish = (text: string): string | null => {
   return null;
 };
 
+const scaledNumber = String.raw`\d+(?:\.\d+)?(?:\s*(?:هزار|میلیون|میلیارد|thousand|million|billion|k))?`;
+
+const extractMeetingCostValues = (text: string, locale: TinyLocale): Record<string, TinyAssistantValue> => {
+  const normalized = normalizeDigits(text).toLocaleLowerCase();
+  const values: Record<string, TinyAssistantValue> = {};
+
+  const participantMatch = normalized.match(/(\d+(?:\.\d+)?)\s*(?:نفره?|people|persons?|participants?)/iu);
+  if (participantMatch?.[1]) values.participants = Number(participantMatch[1]);
+
+  const durationMatch = normalized.match(/(\d+(?:\.\d+)?)\s*(?:دقیقه|minutes?|mins?)/iu);
+  if (durationMatch?.[1]) values.durationMinutes = Number(durationMatch[1]);
+
+  const hourlyPatterns = locale === 'fa'
+    ? [
+        new RegExp(String.raw`(?:هزینه\s*)?ساعتی(?:\s+هر\s+نفر)?[^\d]{0,16}(${scaledNumber})`, 'iu'),
+        new RegExp(String.raw`(${scaledNumber})\s*(?:تومان|ریال|دلار|یورو)?\s*(?:برای|به\s+ازای)\s*(?:هر\s*)?ساعت`, 'iu'),
+      ]
+    : [
+        new RegExp(String.raw`(?:average\s+)?hourly(?:\s+cost)?[^\d$]{0,16}\$?\s*(${scaledNumber})`, 'iu'),
+        new RegExp(String.raw`\$?\s*(${scaledNumber})\s*(?:usd|dollars?|eur|euros?)?\s*(?:\/\s*(?:hour|hr)|per\s+hour)`, 'iu'),
+      ];
+
+  for (const pattern of hourlyPatterns) {
+    const match = normalized.match(pattern);
+    if (!match?.[1]) continue;
+    const amount = parseAmount(match[1]);
+    if (amount !== null) values.averageHourlyCost = amount;
+    break;
+  }
+
+  values.currency = detectCurrency(text, locale === 'fa' ? 'TOMAN' : 'USD');
+  return values;
+};
+
 const findModule = (text: string, locale: TinyLocale) => {
   const normalized = text.toLocaleLowerCase();
   return moduleCatalog.find((module) => {
@@ -58,6 +92,19 @@ export const interpretLocally = (text: string, locale: TinyLocale): TinyAssistan
   const trimmed = text.trim();
   const normalized = normalizeDigits(trimmed).toLocaleLowerCase();
   const values: Record<string, TinyAssistantValue> = {};
+
+  const isMeetingCost = locale === 'fa'
+    ? /جلسه/.test(trimmed) && /(هزینه|چقدر|قیمت)/.test(trimmed)
+    : /\bmeeting\b/i.test(trimmed) && /\b(cost|how much|price)\b/i.test(trimmed);
+
+  if (isMeetingCost) {
+    return {
+      actionId: 'tiny-meeting-cost.calculate',
+      confidence: 0.98,
+      values: extractMeetingCostValues(trimmed, locale),
+      source: 'local',
+    };
+  }
 
   const isProjectCreate = locale === 'fa'
     ? /پروژه/.test(trimmed) && /(ایجاد|ثبت|بساز|اضافه)/.test(trimmed)
