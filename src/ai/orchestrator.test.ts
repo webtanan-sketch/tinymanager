@@ -31,7 +31,7 @@ class MemoryStorage implements TinyManagerStorage {
 }
 
 describe('Tiny AI orchestrator', () => {
-  it('does not write before confirmation', async () => {
+  it('does not write a project before confirmation', async () => {
     const storage = new MemoryStorage();
     const assistant = new TinyAssistantOrchestrator(storage);
 
@@ -47,7 +47,7 @@ describe('Tiny AI orchestrator', () => {
     expect(projects?.[0]?.budgetAmount).toBe(300_000_000);
   });
 
-  it('asks only for the missing amount and then confirms', async () => {
+  it('asks only for the missing project amount and then confirms', async () => {
     const storage = new MemoryStorage();
     const assistant = new TinyAssistantOrchestrator(storage);
 
@@ -58,6 +58,44 @@ describe('Tiny AI orchestrator', () => {
     const second = await assistant.submit('۵۰۰ میلیون', 'fa', first.draft);
     expect(second.kind).toBe('confirmation');
     expect(second.draft?.values.budgetAmount).toBe(500_000_000);
+  });
+
+  it('returns a meeting calculation immediately because it is read-only', async () => {
+    const assistant = new TinyAssistantOrchestrator(new MemoryStorage());
+    const reply = await assistant.submit(
+      'جلسه ۸ نفره ۹۰ دقیقه با هزینه ساعتی ۵۰۰ هزار تومان چقدر هزینه دارد؟',
+      'fa',
+      null,
+    );
+    expect(reply.kind).toBe('success');
+    expect(reply.draft).toBeNull();
+    expect(reply.text).toContain('۶٬۰۰۰٬۰۰۰');
+  });
+
+  it('does not write a Waiting For item before confirmation', async () => {
+    const storage = new MemoryStorage();
+    const assistant = new TinyAssistantOrchestrator(storage);
+
+    const first = await assistant.submit('منتظر لیست قیمت از علی هستم', 'fa', null);
+    expect(first.kind).toBe('confirmation');
+    expect(await storage.get('module.tiny-waiting.items')).toBeNull();
+
+    const confirmed = await assistant.submit('تأیید', 'fa', first.draft);
+    expect(confirmed.kind).toBe('success');
+    const items = await storage.get<Array<{ subject: string; waitingOn: string }>>('module.tiny-waiting.items');
+    expect(items?.[0]?.subject).toBe('لیست قیمت');
+    expect(items?.[0]?.waitingOn).toBe('علی');
+  });
+
+  it('asks only for the missing Waiting For person', async () => {
+    const assistant = new TinyAssistantOrchestrator(new MemoryStorage());
+    const first = await assistant.submit('منتظر لیست قیمت هستم', 'fa', null);
+    expect(first.kind).toBe('question');
+    expect(first.draft?.missingFieldIds).toEqual(['waitingOn']);
+
+    const second = await assistant.submit('علی', 'fa', first.draft);
+    expect(second.kind).toBe('confirmation');
+    expect(second.draft?.values.waitingOn).toBe('علی');
   });
 
   it('cancels without writing', async () => {
