@@ -1,18 +1,27 @@
 import type { TinyLocale, TinyManagerStorage } from '../core/types';
 import { getAssistantAction } from './action-registry';
-import { TinyLanguageRepository, tinyLanguageMatches, type TinyLanguageLexicon } from './language-engine';
+import { createTinyLanguageLearningPrompt } from './language-learning';
+import {
+  TinyLanguageRepository,
+  tinyLanguageConcepts,
+  tinyLanguageMatches,
+  type TinyLanguageConceptId,
+  type TinyLanguageLexicon,
+} from './language-engine';
 import { detectCurrency, parseAmount } from './number-parser';
 import { interpretLocally } from './local-interpreter';
 import type {
   TinyAssistantDraft,
   TinyAssistantInterpretation,
   TinyAssistantValue,
+  TinyLanguageLearningPrompt,
 } from './types';
 
 export interface TinyAssistantReply {
   text: string;
-  kind: 'message' | 'question' | 'confirmation' | 'success' | 'error';
+  kind: 'message' | 'question' | 'learning' | 'confirmation' | 'success' | 'error';
   draft: TinyAssistantDraft | null;
+  learning?: TinyLanguageLearningPrompt;
   route?: string | undefined;
 }
 
@@ -72,6 +81,9 @@ const fillMissingValue = (
   };
 };
 
+const isConceptId = (value: string): value is TinyLanguageConceptId =>
+  tinyLanguageConcepts.some((concept) => concept.id === value);
+
 export class TinyAssistantOrchestrator {
   private readonly language: TinyLanguageRepository;
 
@@ -86,6 +98,33 @@ export class TinyAssistantOrchestrator {
   private async interpret(text: string, locale: TinyLocale): Promise<TinyAssistantInterpretation> {
     const lexicon = await this.loadLexicon();
     return interpretLocally(text, locale, lexicon);
+  }
+
+  async prepareLanguageAlias(
+    phrase: string,
+    conceptId: string,
+    locale: TinyLocale,
+  ): Promise<TinyAssistantReply> {
+    const cleanedPhrase = phrase.trim();
+    if (!cleanedPhrase || !isConceptId(conceptId) || conceptId === 'system.teach') {
+      return {
+        text: locale === 'fa' ? 'عبارت و بخش مربوط را انتخاب کن.' : 'Choose the phrase and the related system concept.',
+        kind: 'learning',
+        draft: null,
+      };
+    }
+
+    const draft: TinyAssistantDraft = {
+      actionId: 'core.language.alias.add',
+      values: { phrase: cleanedPhrase, conceptId, locale },
+      missingFieldIds: [],
+      phase: 'confirming',
+    };
+    return {
+      text: confirmationText(draft, locale),
+      kind: 'confirmation',
+      draft,
+    };
   }
 
   async submit(
@@ -161,12 +200,14 @@ export class TinyAssistantOrchestrator {
 
     const interpretation = await this.interpret(cleaned, locale);
     if (!interpretation.actionId) {
+      const learning = createTinyLanguageLearningPrompt(cleaned, locale, lexicon);
       return {
         text: locale === 'fa'
-          ? 'این جمله با واژه‌ها و الگوهای تعریف‌شده تطبیق ندارد. می‌توانی جمله را ساده‌تر بنویسی یا یک مترادف جدید به موتور زبان یاد بدهی.'
-          : 'This sentence does not match the defined words and patterns. Use a simpler command or teach the language engine a new alias.',
-        kind: 'question',
+          ? `عبارت «${learning.phrase}» را نمی‌شناسم. این عبارت مربوط به کدام بخش TinyManager است؟`
+          : `I do not recognize “${learning.phrase}”. Which TinyManager concept does it belong to?`,
+        kind: 'learning',
         draft: null,
+        learning,
       };
     }
 
