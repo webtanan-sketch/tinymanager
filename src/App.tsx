@@ -38,9 +38,10 @@ import { useTheme } from './core/theme';
 import type { TinyManagerModuleManifest, TinyTheme } from './core/types';
 import { moduleCatalog } from './modules/catalog';
 import { DecisionMatrixModulePage } from './modules/DecisionMatrixModulePage';
+import { MeetingCostModulePage } from './modules/MeetingCostModulePage';
 
 const registry = new TinyManagerModuleRegistry(moduleCatalog, tinyStorage);
-const integratedModuleIds = new Set(['tiny-decision-matrix']);
+const integratedModuleIds = new Set(['tiny-decision-matrix', 'tiny-meeting-cost']);
 
 const moduleIcons: Record<string, LucideIcon> = {
   Scale,
@@ -109,6 +110,16 @@ function App() {
             element={
               modules.ready && modules.enabledIds.has('tiny-decision-matrix') ? (
                 <DecisionMatrixModulePage />
+              ) : (
+                <Navigate replace to="/modules" />
+              )
+            }
+          />
+          <Route
+            path="/modules/meeting-cost"
+            element={
+              modules.ready && modules.enabledIds.has('tiny-meeting-cost') ? (
+                <MeetingCostModulePage />
               ) : (
                 <Navigate replace to="/modules" />
               )
