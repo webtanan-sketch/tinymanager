@@ -1,3 +1,4 @@
+import { calculateMeetingCost, type TinyMeetingCurrency } from 'tiny-meeting-cost';
 import { TinyManagerModuleRegistry } from '../core/module-registry';
 import { TinyProjectRepository, type TinyProjectCurrency } from '../core/projects';
 import { moduleCatalog } from '../modules/catalog';
@@ -16,8 +17,24 @@ const currencyOf = (value: TinyAssistantValue | undefined): TinyProjectCurrency 
   return 'OTHER';
 };
 
+const meetingCurrencyOf = (value: TinyAssistantValue | undefined): TinyMeetingCurrency => currencyOf(value);
+
 const moduleName = (id: string, locale: 'fa' | 'en'): string =>
   moduleCatalog.find((module) => module.id === id)?.name[locale] ?? id;
+
+const formatMeetingResult = (value: number, currency: TinyMeetingCurrency, locale: 'fa' | 'en'): string => {
+  const formatted = new Intl.NumberFormat(locale === 'fa' ? 'fa-IR' : 'en-US', {
+    maximumFractionDigits: 0,
+  }).format(value);
+  const labels: Record<TinyMeetingCurrency, { fa: string; en: string }> = {
+    TOMAN: { fa: 'تومان', en: 'toman' },
+    IRR: { fa: 'ریال', en: 'IRR' },
+    USD: { fa: 'دلار', en: 'USD' },
+    EUR: { fa: 'یورو', en: 'EUR' },
+    OTHER: { fa: 'واحد', en: 'units' },
+  };
+  return `${formatted} ${labels[currency][locale]}`;
+};
 
 const createProject: TinyAssistantActionDefinition = {
   id: 'core.project.create',
@@ -67,6 +84,48 @@ const createProject: TinyAssistantActionDefinition = {
       message: {
         fa: `پروژه «${project.name}» ثبت شد.`,
         en: `Project “${project.name}” was created.`,
+      },
+    };
+  },
+};
+
+const calculateMeeting: TinyAssistantActionDefinition = {
+  id: 'tiny-meeting-cost.calculate',
+  moduleId: 'tiny-meeting-cost',
+  title: { fa: 'محاسبه هزینه جلسه', en: 'Calculate meeting cost' },
+  description: {
+    fa: 'محاسبه هزینه مالی و نفر-ساعت جلسه بدون ثبت داده.',
+    en: 'Calculate meeting cost and person-hours without writing data.',
+  },
+  fields: [
+    { id: 'participants', label: { fa: 'تعداد افراد', en: 'Number of participants' }, required: true, type: 'number' },
+    { id: 'durationMinutes', label: { fa: 'مدت جلسه به دقیقه', en: 'Meeting duration in minutes' }, required: true, type: 'number' },
+    { id: 'averageHourlyCost', label: { fa: 'هزینه ساعتی متوسط هر نفر', en: 'Average hourly cost per person' }, required: true, type: 'number' },
+    { id: 'currency', label: { fa: 'واحد پول', en: 'Currency' }, required: true, type: 'currency' },
+  ],
+  requiresConfirmation: false,
+  summarize(values, locale) {
+    const participants = asNumber(values.participants);
+    const duration = asNumber(values.durationMinutes);
+    return locale === 'fa'
+      ? `محاسبه هزینه جلسه ${participants} نفره با مدت ${duration} دقیقه`
+      : `Calculate a ${duration}-minute meeting for ${participants} people`;
+  },
+  async execute(values) {
+    const currency = meetingCurrencyOf(values.currency);
+    const result = calculateMeetingCost({
+      participants: asNumber(values.participants),
+      durationMinutes: asNumber(values.durationMinutes),
+      averageHourlyCost: asNumber(values.averageHourlyCost),
+      currency,
+    });
+    const faPersonHours = new Intl.NumberFormat('fa-IR', { maximumFractionDigits: 1 }).format(result.personHours);
+    const enPersonHours = new Intl.NumberFormat('en-US', { maximumFractionDigits: 1 }).format(result.personHours);
+    return {
+      ok: true,
+      message: {
+        fa: `هزینه تقریبی جلسه ${formatMeetingResult(result.totalCost, currency, 'fa')} است؛ مجموع زمان مصرف‌شده ${faPersonHours} نفر-ساعت است.`,
+        en: `Estimated meeting cost is ${formatMeetingResult(result.totalCost, currency, 'en')}; total time is ${enPersonHours} person-hours.`,
       },
     };
   },
@@ -167,6 +226,7 @@ const openModule: TinyAssistantActionDefinition = {
 
 export const assistantActions: TinyAssistantActionDefinition[] = [
   createProject,
+  calculateMeeting,
   moduleToggle(true),
   moduleToggle(false),
   openModule,
