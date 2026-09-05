@@ -17,7 +17,6 @@ import {
   Network,
   Puzzle,
   Scale,
-  Search,
   Send,
   Settings,
   ShieldCheck,
@@ -29,6 +28,7 @@ import {
 } from 'lucide-react';
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { HashRouter, Navigate, NavLink, Route, Routes } from 'react-router-dom';
+import { TinyAssistantCommandBar } from './components/TinyAssistantCommandBar';
 import { createBackup, downloadBackupFile, restoreBackup } from './core/backup';
 import { tinyDateService } from './core/date-service';
 import { useI18n } from './core/i18n';
@@ -60,13 +60,21 @@ function useModuleRegistry() {
 
   useEffect(() => {
     let active = true;
-    void registry.hydrate().then(() => {
+
+    const refresh = async () => {
+      await registry.hydrate();
       if (!active) return;
       setEnabledIds(new Set(registry.listEnabled().map((module) => module.id)));
       setReady(true);
-    });
+    };
+
+    void refresh();
+    const onModulesChanged = () => void refresh();
+    window.addEventListener('tinymanager:modules-changed', onModulesChanged);
+
     return () => {
       active = false;
+      window.removeEventListener('tinymanager:modules-changed', onModulesChanged);
     };
   }, []);
 
@@ -169,11 +177,7 @@ function AppShell({ children }: { children: ReactNode }) {
 
       <main className="tm-main">
         <header className="tm-header">
-          <label className="tm-search">
-            <Search size={18} />
-            <input aria-label={t('commandSearch')} placeholder={t('commandSearch')} />
-            <kbd>⌘ K</kbd>
-          </label>
+          <TinyAssistantCommandBar />
 
           <div className="tm-header-actions">
             <button
