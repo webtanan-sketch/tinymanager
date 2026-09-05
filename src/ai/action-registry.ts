@@ -92,19 +92,32 @@ const moduleToggle = (enabled: boolean): TinyAssistantActionDefinition => ({
   },
   async execute(values, context: TinyAssistantExecutionContext) {
     const id = asString(values.moduleId);
+    const module = moduleCatalog.find((item) => item.id === id);
+    if (!module) {
+      return {
+        ok: false,
+        message: { fa: 'ماژول پیدا نشد.', en: 'Module not found.' },
+      };
+    }
+
     const registry = new TinyManagerModuleRegistry(moduleCatalog, context.storage);
     await registry.hydrate();
     await registry.setEnabled(id, enabled);
     if (typeof window !== 'undefined') {
       window.dispatchEvent(new CustomEvent('tinymanager:modules-changed'));
     }
-    return {
+
+    const result = {
       ok: true,
       message: enabled
-        ? { fa: `ماژول «${moduleName(id, 'fa')}» فعال شد.`, en: `The “${moduleName(id, 'en')}” module was enabled.` }
-        : { fa: `ماژول «${moduleName(id, 'fa')}» غیرفعال شد.`, en: `The “${moduleName(id, 'en')}” module was disabled.` },
-      route: enabled ? moduleCatalog.find((module) => module.id === id)?.route : undefined,
+        ? { fa: `ماژول «${module.name.fa}» فعال شد.`, en: `The “${module.name.en}” module was enabled.` }
+        : { fa: `ماژول «${module.name.fa}» غیرفعال شد.`, en: `The “${module.name.en}” module was disabled.` },
     };
+
+    if (enabled && module.maturity !== 'foundation') {
+      return { ...result, route: module.route };
+    }
+    return result;
   },
 });
 
@@ -129,6 +142,16 @@ const openModule: TinyAssistantActionDefinition = {
       return {
         ok: false,
         message: { fa: 'ماژول پیدا نشد.', en: 'Module not found.' },
+      };
+    }
+    if (module.maturity === 'foundation') {
+      return {
+        ok: false,
+        route: '/modules',
+        message: {
+          fa: `ماژول «${module.name.fa}» هنوز در مرحله پایه است؛ صفحه ماژول‌ها را باز کردم.`,
+          en: `The “${module.name.en}” module is still in foundation stage; I opened the Modules screen.`,
+        },
       };
     }
     return {
