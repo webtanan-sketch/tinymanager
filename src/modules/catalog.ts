@@ -5,6 +5,7 @@ const commonCapabilities = {
   sharedPeople: false,
   sharedProjects: true,
   notifications: false,
+  assistantActions: true,
 } as const;
 
 export const moduleCatalog: TinyManagerModuleManifest[] = [
