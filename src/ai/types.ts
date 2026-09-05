@@ -1,4 +1,5 @@
 import type { TinyLocale, TinyManagerStorage } from '../core/types';
+import type { TinyLanguageConceptId } from './language-engine';
 
 export type TinyAssistantValue = string | number | boolean | null;
 
@@ -47,9 +48,16 @@ export interface TinyAssistantDraft {
   phase: 'collecting' | 'confirming';
 }
 
+export interface TinyLanguageLearningPrompt {
+  phrase: string;
+  locale: TinyLocale;
+  originalText: string;
+  suggestedConceptIds: TinyLanguageConceptId[];
+}
+
 export interface TinyAssistantTurn {
   id: string;
   role: 'user' | 'assistant';
   text: string;
-  kind?: 'message' | 'question' | 'confirmation' | 'success' | 'error';
+  kind?: 'message' | 'question' | 'learning' | 'confirmation' | 'success' | 'error';
 }
