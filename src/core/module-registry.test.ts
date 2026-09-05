@@ -47,6 +47,7 @@ const moduleManifest: TinyManagerModuleManifest = {
     sharedPeople: false,
     sharedProjects: false,
     notifications: false,
+    assistantActions: false,
   },
 };
 
