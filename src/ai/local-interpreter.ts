@@ -24,6 +24,7 @@ const cleanupProjectName = (
   return value
     .replace(/^(?:به\s+نام|با\s+نام|named|called)\s+/iu, '')
     .replace(createTerms ? new RegExp(`\\s+(?:${createTerms}).*$`, 'iu') : /$^/u, '')
+    .replace(/\s+(?:با|with)$/iu, '')
     .replace(/[،,.]+$/u, '')
     .trim();
 };
