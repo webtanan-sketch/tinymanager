@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { TinyManagerStorage } from '../core/types';
+import { TINY_LANGUAGE_STORAGE_KEY } from './language-engine';
 import { TinyAssistantOrchestrator } from './orchestrator';
 
 class MemoryStorage implements TinyManagerStorage {
@@ -96,6 +97,40 @@ describe('Tiny AI orchestrator', () => {
     const second = await assistant.submit('علی', 'fa', first.draft);
     expect(second.kind).toBe('confirmation');
     expect(second.draft?.values.waitingOn).toBe('علی');
+  });
+
+  it('teaches a new controlled alias only after confirmation and then uses it', async () => {
+    const storage = new MemoryStorage();
+    const assistant = new TinyAssistantOrchestrator(storage);
+
+    const unknown = await assistant.submit('پروژه انبار با بودجه ۲۰۰ میلیون راه بینداز', 'fa', null);
+    expect(unknown.kind).toBe('question');
+    expect(unknown.draft).toBeNull();
+
+    const teach = await assistant.submit('برای «ایجاد» واژه «راه بینداز» را اضافه کن', 'fa', null);
+    expect(teach.kind).toBe('confirmation');
+    expect(await storage.get(TINY_LANGUAGE_STORAGE_KEY)).toBeNull();
+
+    const saved = await assistant.submit('تأیید', 'fa', teach.draft);
+    expect(saved.kind).toBe('success');
+    expect(await storage.get(TINY_LANGUAGE_STORAGE_KEY)).not.toBeNull();
+
+    const recognized = await assistant.submit('پروژه انبار با بودجه ۲۰۰ میلیون راه بینداز', 'fa', null);
+    expect(recognized.kind).toBe('confirmation');
+    expect(recognized.draft?.actionId).toBe('core.project.create');
+  });
+
+  it('allows confirmation vocabulary itself to be extended', async () => {
+    const storage = new MemoryStorage();
+    const assistant = new TinyAssistantOrchestrator(storage);
+
+    const teach = await assistant.submit('برای «تأیید» واژه «قطعی کن» را اضافه کن', 'fa', null);
+    const saved = await assistant.submit('تأیید', 'fa', teach.draft);
+    expect(saved.kind).toBe('success');
+
+    const project = await assistant.submit('پروژه دفتر با بودجه ۱۰۰ میلیون ایجاد کن', 'fa', null);
+    const confirmed = await assistant.submit('قطعی کن', 'fa', project.draft);
+    expect(confirmed.kind).toBe('success');
   });
 
   it('cancels without writing', async () => {
