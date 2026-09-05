@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import type { TinyManagerStorage } from '../core/types';
-import { TINY_LANGUAGE_STORAGE_KEY } from './language-engine';
+import { TINY_LANGUAGE_STORAGE_KEY, TINY_LANGUAGE_TRAINING_STORAGE_KEY } from './language-engine';
 import { TinyAssistantOrchestrator } from './orchestrator';
 
 class MemoryStorage implements TinyManagerStorage {
@@ -102,22 +102,31 @@ describe('Tiny AI orchestrator', () => {
   it('offers inline learning for an unknown phrase and only saves after confirmation', async () => {
     const storage = new MemoryStorage();
     const assistant = new TinyAssistantOrchestrator(storage);
+    const originalText = 'پروژه انبار با بودجه ۲۰۰ میلیون راه بینداز';
 
-    const unknown = await assistant.submit('پروژه انبار با بودجه ۲۰۰ میلیون راه بینداز', 'fa', null);
+    const unknown = await assistant.submit(originalText, 'fa', null);
     expect(unknown.kind).toBe('learning');
     expect(unknown.learning?.phrase).toBe('راه بینداز');
     expect(unknown.learning?.suggestedConceptIds).toContain('action.create');
     expect(await storage.get(TINY_LANGUAGE_STORAGE_KEY)).toBeNull();
+    expect(await storage.get(TINY_LANGUAGE_TRAINING_STORAGE_KEY)).toBeNull();
 
-    const prepared = await assistant.prepareLanguageAlias('راه بینداز', 'action.create', 'fa');
+    const prepared = await assistant.prepareLanguageAlias('راه بینداز', 'action.create', 'fa', originalText);
     expect(prepared.kind).toBe('confirmation');
     expect(await storage.get(TINY_LANGUAGE_STORAGE_KEY)).toBeNull();
+    expect(await storage.get(TINY_LANGUAGE_TRAINING_STORAGE_KEY)).toBeNull();
 
     const saved = await assistant.submit('تأیید', 'fa', prepared.draft);
     expect(saved.kind).toBe('success');
     expect(await storage.get(TINY_LANGUAGE_STORAGE_KEY)).not.toBeNull();
+    const training = await storage.get<Array<{ phrase: string; conceptId: string; originalText?: string }>>(
+      TINY_LANGUAGE_TRAINING_STORAGE_KEY,
+    );
+    expect(training?.[0]?.phrase).toBe('راه بینداز');
+    expect(training?.[0]?.conceptId).toBe('action.create');
+    expect(training?.[0]?.originalText).toBe(originalText);
 
-    const recognized = await assistant.submit('پروژه انبار با بودجه ۲۰۰ میلیون راه بینداز', 'fa', null);
+    const recognized = await assistant.submit(originalText, 'fa', null);
     expect(recognized.kind).toBe('confirmation');
     expect(recognized.draft?.actionId).toBe('core.project.create');
   });
