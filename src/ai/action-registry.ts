@@ -3,6 +3,11 @@ import { TinyWaitingRepository } from 'tiny-waiting';
 import { TinyManagerModuleRegistry } from '../core/module-registry';
 import { TinyProjectRepository, type TinyProjectCurrency } from '../core/projects';
 import { moduleCatalog } from '../modules/catalog';
+import {
+  TinyLanguageRepository,
+  tinyLanguageConcepts,
+  type TinyLanguageConceptId,
+} from './language-engine';
 import { formatAmount } from './number-parser';
 import type {
   TinyAssistantActionDefinition,
@@ -23,6 +28,12 @@ const meetingCurrencyOf = (value: TinyAssistantValue | undefined): TinyMeetingCu
 const moduleName = (id: string, locale: 'fa' | 'en'): string =>
   moduleCatalog.find((module) => module.id === id)?.name[locale] ?? id;
 
+const languageConceptName = (id: string, locale: 'fa' | 'en'): string =>
+  tinyLanguageConcepts.find((concept) => concept.id === id)?.label[locale] ?? id;
+
+const isLanguageConceptId = (value: string): value is TinyLanguageConceptId =>
+  tinyLanguageConcepts.some((concept) => concept.id === value);
+
 const formatMeetingResult = (value: number, currency: TinyMeetingCurrency, locale: 'fa' | 'en'): string => {
   const formatted = new Intl.NumberFormat(locale === 'fa' ? 'fa-IR' : 'en-US', {
     maximumFractionDigits: 0,
@@ -35,6 +46,54 @@ const formatMeetingResult = (value: number, currency: TinyMeetingCurrency, local
     OTHER: { fa: 'واحد', en: 'units' },
   };
   return `${formatted} ${labels[currency][locale]}`;
+};
+
+const addLanguageAlias: TinyAssistantActionDefinition = {
+  id: 'core.language.alias.add',
+  moduleId: 'core',
+  title: { fa: 'افزودن واژه به موتور زبان', en: 'Add language alias' },
+  description: {
+    fa: 'افزودن یک مترادف محدود به فرهنگ واژگان Tiny Language Engine.',
+    en: 'Add a controlled alias to the Tiny Language Engine vocabulary.',
+  },
+  fields: [
+    { id: 'phrase', label: { fa: 'واژه یا عبارت جدید', en: 'New word or phrase' }, required: true, type: 'text' },
+    { id: 'conceptId', label: { fa: 'مفهوم مقصد', en: 'Target concept' }, required: true, type: 'text' },
+    { id: 'locale', label: { fa: 'زبان واژه', en: 'Alias language' }, required: true, type: 'text' },
+  ],
+  requiresConfirmation: true,
+  summarize(values, locale) {
+    const phrase = asString(values.phrase);
+    const conceptId = asString(values.conceptId);
+    return locale === 'fa'
+      ? `افزودن واژه «${phrase}» به مفهوم «${languageConceptName(conceptId, 'fa')}»`
+      : `Add “${phrase}” as an alias for “${languageConceptName(conceptId, 'en')}”`;
+  },
+  async execute(values, context) {
+    const phrase = asString(values.phrase);
+    const conceptId = asString(values.conceptId);
+    const requestedLocale = asString(values.locale);
+    if (!isLanguageConceptId(conceptId)) {
+      return {
+        ok: false,
+        message: { fa: 'مفهوم مقصد معتبر نیست.', en: 'The target language concept is invalid.' },
+      };
+    }
+    const aliasLocale = requestedLocale === 'en' ? 'en' : 'fa';
+    const repository = new TinyLanguageRepository(context.storage);
+    const alias = await repository.addAlias({ conceptId, locale: aliasLocale, phrase });
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('tinymanager:language-changed'));
+    }
+    return {
+      ok: true,
+      entityId: alias.id,
+      message: {
+        fa: `واژه «${alias.phrase}» برای مفهوم «${languageConceptName(alias.conceptId, 'fa')}» ذخیره شد.`,
+        en: `“${alias.phrase}” was saved as an alias for “${languageConceptName(alias.conceptId, 'en')}”.`,
+      },
+    };
+  },
 };
 
 const createProject: TinyAssistantActionDefinition = {
@@ -266,6 +325,7 @@ const openModule: TinyAssistantActionDefinition = {
 };
 
 export const assistantActions: TinyAssistantActionDefinition[] = [
+  addLanguageAlias,
   createProject,
   calculateMeeting,
   createWaiting,
