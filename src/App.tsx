@@ -39,9 +39,10 @@ import type { TinyManagerModuleManifest, TinyTheme } from './core/types';
 import { moduleCatalog } from './modules/catalog';
 import { DecisionMatrixModulePage } from './modules/DecisionMatrixModulePage';
 import { MeetingCostModulePage } from './modules/MeetingCostModulePage';
+import { WaitingModulePage } from './modules/WaitingModulePage';
 
 const registry = new TinyManagerModuleRegistry(moduleCatalog, tinyStorage);
-const integratedModuleIds = new Set(['tiny-decision-matrix', 'tiny-meeting-cost']);
+const integratedModuleIds = new Set(['tiny-decision-matrix', 'tiny-meeting-cost', 'tiny-waiting']);
 
 const moduleIcons: Record<string, LucideIcon> = {
   Scale,
@@ -120,6 +121,16 @@ function App() {
             element={
               modules.ready && modules.enabledIds.has('tiny-meeting-cost') ? (
                 <MeetingCostModulePage />
+              ) : (
+                <Navigate replace to="/modules" />
+              )
+            }
+          />
+          <Route
+            path="/modules/waiting"
+            element={
+              modules.ready && modules.enabledIds.has('tiny-waiting') ? (
+                <WaitingModulePage />
               ) : (
                 <Navigate replace to="/modules" />
               )
