@@ -99,25 +99,37 @@ describe('Tiny AI orchestrator', () => {
     expect(second.draft?.values.waitingOn).toBe('علی');
   });
 
-  it('teaches a new controlled alias only after confirmation and then uses it', async () => {
+  it('offers inline learning for an unknown phrase and only saves after confirmation', async () => {
     const storage = new MemoryStorage();
     const assistant = new TinyAssistantOrchestrator(storage);
 
     const unknown = await assistant.submit('پروژه انبار با بودجه ۲۰۰ میلیون راه بینداز', 'fa', null);
-    expect(unknown.kind).toBe('question');
-    expect(unknown.draft).toBeNull();
-
-    const teach = await assistant.submit('برای «ایجاد» واژه «راه بینداز» را اضافه کن', 'fa', null);
-    expect(teach.kind).toBe('confirmation');
+    expect(unknown.kind).toBe('learning');
+    expect(unknown.learning?.phrase).toBe('راه بینداز');
+    expect(unknown.learning?.suggestedConceptIds).toContain('action.create');
     expect(await storage.get(TINY_LANGUAGE_STORAGE_KEY)).toBeNull();
 
-    const saved = await assistant.submit('تأیید', 'fa', teach.draft);
+    const prepared = await assistant.prepareLanguageAlias('راه بینداز', 'action.create', 'fa');
+    expect(prepared.kind).toBe('confirmation');
+    expect(await storage.get(TINY_LANGUAGE_STORAGE_KEY)).toBeNull();
+
+    const saved = await assistant.submit('تأیید', 'fa', prepared.draft);
     expect(saved.kind).toBe('success');
     expect(await storage.get(TINY_LANGUAGE_STORAGE_KEY)).not.toBeNull();
 
     const recognized = await assistant.submit('پروژه انبار با بودجه ۲۰۰ میلیون راه بینداز', 'fa', null);
     expect(recognized.kind).toBe('confirmation');
     expect(recognized.draft?.actionId).toBe('core.project.create');
+  });
+
+  it('still supports explicit vocabulary teaching commands', async () => {
+    const storage = new MemoryStorage();
+    const assistant = new TinyAssistantOrchestrator(storage);
+
+    const teach = await assistant.submit('برای «ایجاد» واژه «راه بنداز» را اضافه کن', 'fa', null);
+    expect(teach.kind).toBe('confirmation');
+    const saved = await assistant.submit('تأیید', 'fa', teach.draft);
+    expect(saved.kind).toBe('success');
   });
 
   it('allows confirmation vocabulary itself to be extended', async () => {
