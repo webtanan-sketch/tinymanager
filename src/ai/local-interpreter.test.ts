@@ -36,6 +36,27 @@ describe('Tiny AI local interpreter', () => {
     expect(result.values.currency).toBe('USD');
   });
 
+  it('extracts a complete Persian Waiting For request', () => {
+    const result = interpretLocally('منتظر لیست قیمت از علی هستم', 'fa');
+    expect(result.actionId).toBe('tiny-waiting.create');
+    expect(result.values.subject).toBe('لیست قیمت');
+    expect(result.values.waitingOn).toBe('علی');
+  });
+
+  it('extracts an English Waiting For request', () => {
+    const result = interpretLocally("I'm waiting for the signed contract from Sara", 'en');
+    expect(result.actionId).toBe('tiny-waiting.create');
+    expect(result.values.subject).toBe('the signed contract');
+    expect(result.values.waitingOn).toBe('Sara');
+  });
+
+  it('keeps a partial Waiting For request for progressive completion', () => {
+    const result = interpretLocally('منتظر لیست قیمت هستم', 'fa');
+    expect(result.actionId).toBe('tiny-waiting.create');
+    expect(result.values.subject).toBe('لیست قیمت');
+    expect(result.values.waitingOn).toBeUndefined();
+  });
+
   it('recognizes a module enable command', () => {
     const result = interpretLocally('ماژول ریسک را فعال کن', 'fa');
     expect(result.actionId).toBe('core.module.enable');
