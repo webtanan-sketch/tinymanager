@@ -39,11 +39,22 @@ export interface TinyLanguageAlias {
   createdAt: string;
 }
 
+export interface TinyLanguageTrainingEvent {
+  id: string;
+  aliasId: string;
+  conceptId: TinyLanguageConceptId;
+  locale: TinyLocale;
+  phrase: string;
+  originalText?: string;
+  confirmedAt: string;
+}
+
 export interface TinyLanguageLexicon {
   aliases: TinyLanguageAlias[];
 }
 
 const STORAGE_KEY = 'core.language.aliases.v1';
+const TRAINING_STORAGE_KEY = 'core.language.training.v1';
 
 export const tinyLanguageConcepts: TinyLanguageConceptDefinition[] = [
   { id: 'entity.project', label: { fa: 'پروژه', en: 'project' }, builtIn: { fa: ['پروژه'], en: ['project'] } },
@@ -139,7 +150,17 @@ export class TinyLanguageRepository {
     return { aliases: Array.isArray(aliases) ? aliases : [] };
   }
 
-  async addAlias(input: { conceptId: TinyLanguageConceptId; locale: TinyLocale; phrase: string }): Promise<TinyLanguageAlias> {
+  async listTraining(): Promise<TinyLanguageTrainingEvent[]> {
+    const events = await this.storage.get<TinyLanguageTrainingEvent[]>(TRAINING_STORAGE_KEY);
+    return Array.isArray(events) ? events : [];
+  }
+
+  async addAlias(input: {
+    conceptId: TinyLanguageConceptId;
+    locale: TinyLocale;
+    phrase: string;
+    originalText?: string;
+  }): Promise<TinyLanguageAlias> {
     const lexicon = await this.load();
     const phrase = normalizeTinyLanguageText(input.phrase);
     if (!phrase) throw new Error('Language alias cannot be empty.');
@@ -147,16 +168,30 @@ export class TinyLanguageRepository {
     const duplicate = lexicon.aliases.find(
       (alias) => alias.conceptId === input.conceptId && alias.locale === input.locale && normalizeTinyLanguageText(alias.phrase) === phrase,
     );
-    if (duplicate) return duplicate;
-
-    const alias: TinyLanguageAlias = {
+    const alias = duplicate ?? {
       id: globalThis.crypto?.randomUUID?.() ?? `lang-${Date.now()}-${Math.random().toString(16).slice(2)}`,
       conceptId: input.conceptId,
       locale: input.locale,
       phrase: input.phrase.trim(),
       createdAt: new Date().toISOString(),
     };
-    await this.storage.set(STORAGE_KEY, [...lexicon.aliases, alias]);
+
+    if (!duplicate) await this.storage.set(STORAGE_KEY, [...lexicon.aliases, alias]);
+
+    if (input.originalText?.trim()) {
+      const history = await this.listTraining();
+      const event: TinyLanguageTrainingEvent = {
+        id: globalThis.crypto?.randomUUID?.() ?? `train-${Date.now()}-${Math.random().toString(16).slice(2)}`,
+        aliasId: alias.id,
+        conceptId: alias.conceptId,
+        locale: alias.locale,
+        phrase: alias.phrase,
+        originalText: input.originalText.trim(),
+        confirmedAt: new Date().toISOString(),
+      };
+      await this.storage.set(TRAINING_STORAGE_KEY, [...history, event]);
+    }
+
     return alias;
   }
 
@@ -167,3 +202,4 @@ export class TinyLanguageRepository {
 }
 
 export const TINY_LANGUAGE_STORAGE_KEY = STORAGE_KEY;
+export const TINY_LANGUAGE_TRAINING_STORAGE_KEY = TRAINING_STORAGE_KEY;
