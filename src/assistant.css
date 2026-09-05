@@ -65,7 +65,8 @@ html[dir="rtl"] .tm-ai-input {
   border-radius: 9px;
 }
 
-.tm-ai-send:disabled {
+.tm-ai-send:disabled,
+.tm-ai-confirm:disabled {
   opacity: 0.35;
   cursor: default;
 }
@@ -224,6 +225,67 @@ html[dir="rtl"] .tm-ai-user-line {
 .tm-ai-reply.is-confirmation {
   border-color: color-mix(in srgb, var(--tm-primary) 28%, var(--tm-border));
   background: color-mix(in srgb, var(--tm-primary) 5%, var(--tm-surface));
+}
+
+.tm-ai-reply.is-learning {
+  border-color: color-mix(in srgb, var(--tm-purple) 28%, var(--tm-border));
+  background: color-mix(in srgb, var(--tm-purple) 5%, var(--tm-surface));
+}
+
+.tm-ai-learning-card {
+  display: flex;
+  flex-direction: column;
+  gap: 11px;
+  margin-top: 10px;
+  padding: 12px;
+  background: var(--tm-surface-soft);
+  border: 1px solid var(--tm-border);
+  border-radius: 12px;
+}
+
+.tm-ai-learning-card label > span {
+  display: block;
+  margin-bottom: 6px;
+  color: var(--tm-text-soft);
+  font-size: 10px;
+  font-weight: 750;
+}
+
+.tm-ai-learning-card input,
+.tm-ai-learning-card select {
+  width: 100%;
+  min-height: 40px;
+  padding: 0 10px;
+  color: var(--tm-text);
+  background: var(--tm-surface);
+  border: 1px solid var(--tm-border-strong);
+  border-radius: 9px;
+  outline: 0;
+  font-size: 11px;
+}
+
+.tm-ai-learning-card input:focus,
+.tm-ai-learning-card select:focus {
+  border-color: color-mix(in srgb, var(--tm-primary) 55%, var(--tm-border));
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--tm-primary) 10%, transparent);
+}
+
+.tm-ai-learning-hint {
+  display: flex;
+  align-items: flex-start;
+  gap: 7px;
+  padding: 9px 10px;
+  color: var(--tm-warning);
+  background: color-mix(in srgb, var(--tm-warning) 7%, var(--tm-surface));
+  border: 1px solid color-mix(in srgb, var(--tm-warning) 18%, var(--tm-border));
+  border-radius: 9px;
+  font-size: 9.5px;
+  line-height: 1.65;
+}
+
+.tm-ai-learning-hint svg {
+  flex: none;
+  margin-top: 1px;
 }
 
 .tm-ai-confirm-actions {
