@@ -1,0 +1,75 @@
+<svg width="1400" height="520" viewBox="0 0 1400 520" fill="none" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1400" y2="520" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#07111F"/>
+      <stop offset="0.55" stop-color="#0F1F35"/>
+      <stop offset="1" stop-color="#12345A"/>
+    </linearGradient>
+    <linearGradient id="accent" x1="76" y1="88" x2="260" y2="270" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#60A5FA"/>
+      <stop offset="1" stop-color="#2DD4BF"/>
+    </linearGradient>
+    <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="22" stdDeviation="24" flood-color="#020617" flood-opacity="0.35"/>
+    </filter>
+  </defs>
+  <rect width="1400" height="520" rx="32" fill="url(#bg)"/>
+  <circle cx="1215" cy="52" r="290" fill="#2563EB" opacity="0.08"/>
+  <circle cx="102" cy="480" r="220" fill="#14B8A6" opacity="0.06"/>
+
+  <g transform="translate(76 82)">
+    <rect width="136" height="136" rx="34" fill="url(#accent)"/>
+    <rect x="29" y="29" width="34" height="34" rx="9" fill="white" fill-opacity="0.96"/>
+    <rect x="73" y="29" width="34" height="34" rx="9" fill="white" fill-opacity="0.72"/>
+    <rect x="29" y="73" width="34" height="34" rx="9" fill="white" fill-opacity="0.72"/>
+    <rect x="73" y="73" width="34" height="34" rx="9" fill="white" fill-opacity="0.96"/>
+  </g>
+
+  <text x="240" y="143" fill="white" font-family="Inter, Arial, sans-serif" font-size="62" font-weight="760" letter-spacing="-2">TinyManager</text>
+  <text x="242" y="190" fill="#A8B8CC" font-family="Inter, Arial, sans-serif" font-size="24" font-weight="500">Small tools. Better management.</text>
+  <text x="242" y="236" fill="#D9E5F4" font-family="Tahoma, Arial, sans-serif" font-size="24" font-weight="600">ابزارهای کوچک، مدیریت بهتر</text>
+
+  <g filter="url(#shadow)">
+    <rect x="762" y="96" width="556" height="332" rx="24" fill="#0B1628" stroke="#29415E"/>
+    <rect x="786" y="120" width="128" height="284" rx="18" fill="#0F213A"/>
+    <rect x="806" y="148" width="88" height="12" rx="6" fill="#5EA5F8"/>
+    <rect x="806" y="190" width="67" height="9" rx="4.5" fill="#6F8198"/>
+    <rect x="806" y="224" width="76" height="9" rx="4.5" fill="#6F8198"/>
+    <rect x="806" y="258" width="58" height="9" rx="4.5" fill="#6F8198"/>
+    <rect x="806" y="292" width="72" height="9" rx="4.5" fill="#6F8198"/>
+    <rect x="806" y="326" width="62" height="9" rx="4.5" fill="#6F8198"/>
+
+    <rect x="938" y="121" width="354" height="60" rx="15" fill="#10243E"/>
+    <rect x="960" y="142" width="150" height="12" rx="6" fill="#D5E5F7"/>
+    <rect x="1166" y="138" width="102" height="22" rx="11" fill="#163D4B"/>
+    <circle cx="1184" cy="149" r="5" fill="#2DD4BF"/>
+
+    <rect x="938" y="201" width="106" height="94" rx="15" fill="#10243E"/>
+    <rect x="1058" y="201" width="106" height="94" rx="15" fill="#10243E"/>
+    <rect x="1178" y="201" width="114" height="94" rx="15" fill="#10243E"/>
+    <rect x="958" y="222" width="42" height="42" rx="12" fill="#17365A"/>
+    <rect x="1078" y="222" width="42" height="42" rx="12" fill="#183B48"/>
+    <rect x="1199" y="222" width="42" height="42" rx="12" fill="#42305E"/>
+    <circle cx="979" cy="243" r="8" stroke="#60A5FA" stroke-width="3"/>
+    <path d="M1092 244h15M1099.5 236.5V251.5" stroke="#2DD4BF" stroke-width="3" stroke-linecap="round"/>
+    <path d="M1212 250l7-14 7 14h-14z" stroke="#C084FC" stroke-width="2.5" stroke-linejoin="round"/>
+
+    <rect x="938" y="315" width="354" height="89" rx="15" fill="#10243E"/>
+    <path d="M963 379C990 359 1010 367 1038 345C1060 328 1082 351 1109 339C1137 327 1162 360 1192 338C1218 320 1237 336 1267 323" stroke="#60A5FA" stroke-width="4" stroke-linecap="round"/>
+    <circle cx="1109" cy="339" r="5" fill="#2DD4BF"/>
+  </g>
+
+  <g transform="translate(78 334)">
+    <rect width="196" height="46" rx="23" fill="#0E2D4D" stroke="#28577E"/>
+    <circle cx="25" cy="23" r="7" fill="#60A5FA"/>
+    <text x="44" y="29" fill="#E5F2FF" font-family="Inter, Arial, sans-serif" font-size="17" font-weight="600">Modular by design</text>
+
+    <rect x="214" width="180" height="46" rx="23" fill="#12343D" stroke="#2A5B58"/>
+    <circle cx="239" cy="23" r="7" fill="#2DD4BF"/>
+    <text x="258" y="29" fill="#E5FFF9" font-family="Inter, Arial, sans-serif" font-size="17" font-weight="600">Local-first</text>
+
+    <rect x="412" width="176" height="46" rx="23" fill="#2A2140" stroke="#57416D"/>
+    <circle cx="437" cy="23" r="7" fill="#C084FC"/>
+    <text x="456" y="29" fill="#F7EDFF" font-family="Inter, Arial, sans-serif" font-size="17" font-weight="600">FA RTL · EN LTR</text>
+  </g>
+</svg>
