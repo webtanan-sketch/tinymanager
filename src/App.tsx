@@ -27,8 +27,8 @@ import {
   Upload,
   type LucideIcon,
 } from 'lucide-react';
-import { useEffect, useMemo, useRef, useState } from 'react';
-import { HashRouter, NavLink, Route, Routes } from 'react-router-dom';
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { HashRouter, Navigate, NavLink, Route, Routes } from 'react-router-dom';
 import { createBackup, downloadBackupFile, restoreBackup } from './core/backup';
 import { tinyDateService } from './core/date-service';
 import { useI18n } from './core/i18n';
@@ -37,8 +37,10 @@ import { tinyStorage } from './core/storage';
 import { useTheme } from './core/theme';
 import type { TinyManagerModuleManifest, TinyTheme } from './core/types';
 import { moduleCatalog } from './modules/catalog';
+import { DecisionMatrixModulePage } from './modules/DecisionMatrixModulePage';
 
 const registry = new TinyManagerModuleRegistry(moduleCatalog, tinyStorage);
+const integratedModuleIds = new Set(['tiny-decision-matrix']);
 
 const moduleIcons: Record<string, LucideIcon> = {
   Scale,
@@ -94,6 +96,16 @@ function App() {
               />
             }
           />
+          <Route
+            path="/modules/decision-matrix"
+            element={
+              modules.ready && modules.enabledIds.has('tiny-decision-matrix') ? (
+                <DecisionMatrixModulePage />
+              ) : (
+                <Navigate replace to="/modules" />
+              )
+            }
+          />
           <Route path="/settings" element={<SettingsPage />} />
           <Route path="*" element={<Dashboard enabledIds={modules.enabledIds} />} />
         </Routes>
@@ -102,7 +114,7 @@ function App() {
   );
 }
 
-function AppShell({ children }: { children: React.ReactNode }) {
+function AppShell({ children }: { children: ReactNode }) {
   const { locale, setLocale, t } = useI18n();
   const { effectiveTheme, setTheme } = useTheme();
 
@@ -289,6 +301,7 @@ function ModulePreviewCard({
 }) {
   const { locale, t } = useI18n();
   const Icon = moduleIcons[module.icon] ?? Puzzle;
+  const canOpen = !preview && integratedModuleIds.has(module.id);
 
   return (
     <article className="tm-module-card">
@@ -302,9 +315,15 @@ function ModulePreviewCard({
       <p>{module.description[locale]}</p>
       <div className="tm-module-card-footer">
         <span>{module.id}</span>
-        <a href={module.repository} target="_blank" rel="noreferrer" aria-label={t('openRepository')}>
-          <ArrowUpRight size={17} />
-        </a>
+        {canOpen ? (
+          <NavLink to={module.route} aria-label={locale === 'fa' ? 'باز کردن ماژول' : 'Open module'}>
+            <ArrowUpRight size={17} />
+          </NavLink>
+        ) : (
+          <a href={module.repository} target="_blank" rel="noreferrer" aria-label={t('openRepository')}>
+            <ArrowUpRight size={17} />
+          </a>
+        )}
       </div>
     </article>
   );
@@ -345,6 +364,7 @@ function ModulesPage({
         {moduleCatalog.map((module) => {
           const Icon = moduleIcons[module.icon] ?? Puzzle;
           const enabled = enabledIds.has(module.id);
+          const canOpen = enabled && integratedModuleIds.has(module.id);
           return (
             <article className="tm-module-row" key={module.id}>
               <div className="tm-module-row-main">
@@ -362,15 +382,23 @@ function ModulesPage({
                   </a>
                 </div>
               </div>
-              <button
-                type="button"
-                className={`tm-toggle-button${enabled ? ' is-enabled' : ''}`}
-                disabled={!ready || busyId === module.id}
-                onClick={() => void toggle(module)}
-              >
-                {enabled && <Check size={17} />}
-                {enabled ? t('disable') : t('enable')}
-              </button>
+              <div className="tm-module-row-actions">
+                {canOpen && (
+                  <NavLink className="tm-open-module-button" to={module.route}>
+                    <ArrowUpRight size={16} />
+                    {locale === 'fa' ? 'ورود' : 'Open'}
+                  </NavLink>
+                )}
+                <button
+                  type="button"
+                  className={`tm-toggle-button${enabled ? ' is-enabled' : ''}`}
+                  disabled={!ready || busyId === module.id}
+                  onClick={() => void toggle(module)}
+                >
+                  {enabled && <Check size={17} />}
+                  {enabled ? t('disable') : t('enable')}
+                </button>
+              </div>
             </article>
           );
         })}
@@ -501,7 +529,7 @@ function SettingsCard({
 }: {
   icon: LucideIcon;
   title: string;
-  children: React.ReactNode;
+  children: ReactNode;
   wide?: boolean;
 }) {
   return (
