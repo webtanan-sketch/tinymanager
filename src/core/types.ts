@@ -23,6 +23,7 @@ export interface ModuleCapabilitySet {
   sharedPeople: boolean;
   sharedProjects: boolean;
   notifications: boolean;
+  assistantActions: boolean;
 }
 
 export interface TinyManagerModuleManifest {
