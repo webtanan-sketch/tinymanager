@@ -20,7 +20,7 @@
     "react": ">=19 <20",
     "react-dom": ">=19 <20",
     "react-router-dom": ">=7 <8",
-    "tiny-decision-matrix": "github:webtanan-sketch/tiny-decision-matrix#c98237ef958c0b873df1a15fb5aabf3ddf0093ae",
+    "tiny-decision-matrix": "github:webtanan-sketch/tiny-decision-matrix#6ee38930ab38ac83312967de1418a3f9dc6d9e98",
     "webtanan-jalali-date-engine": "github:webtanan-sketch/webtanan-jalali-date-engine#5fc682ca3c7ed97923b152650516feaaa40b6a50"
   },
   "devDependencies": {
