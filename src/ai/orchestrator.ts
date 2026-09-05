@@ -104,6 +104,7 @@ export class TinyAssistantOrchestrator {
     phrase: string,
     conceptId: string,
     locale: TinyLocale,
+    originalText?: string,
   ): Promise<TinyAssistantReply> {
     const cleanedPhrase = phrase.trim();
     if (!cleanedPhrase || !isConceptId(conceptId) || conceptId === 'system.teach') {
@@ -116,7 +117,12 @@ export class TinyAssistantOrchestrator {
 
     const draft: TinyAssistantDraft = {
       actionId: 'core.language.alias.add',
-      values: { phrase: cleanedPhrase, conceptId, locale },
+      values: {
+        phrase: cleanedPhrase,
+        conceptId,
+        locale,
+        originalText: originalText?.trim() || null,
+      },
       missingFieldIds: [],
       phase: 'confirming',
     };
@@ -173,6 +179,17 @@ export class TinyAssistantOrchestrator {
         };
       }
       const result = await action.execute(draft.values, { locale, storage: this.storage });
+
+      if (result.ok && draft.actionId === 'core.language.alias.add') {
+        const phrase = typeof draft.values.phrase === 'string' ? draft.values.phrase : '';
+        const conceptId = typeof draft.values.conceptId === 'string' ? draft.values.conceptId : '';
+        const aliasLocale = draft.values.locale === 'en' ? 'en' : 'fa';
+        const originalText = typeof draft.values.originalText === 'string' ? draft.values.originalText : undefined;
+        if (phrase && isConceptId(conceptId) && originalText) {
+          await this.language.addAlias({ phrase, conceptId, locale: aliasLocale, originalText });
+        }
+      }
+
       return {
         text: result.message[locale],
         kind: result.ok ? 'success' : 'error',
