@@ -71,6 +71,35 @@ const extractMeetingCostValues = (text: string, locale: TinyLocale): Record<stri
   return values;
 };
 
+const cleanWaitingValue = (value: string): string =>
+  value.replace(/[،,.!?؟]+$/u, '').replace(/\s+/g, ' ').trim();
+
+const extractWaitingValues = (text: string, locale: TinyLocale): Record<string, TinyAssistantValue> => {
+  const values: Record<string, TinyAssistantValue> = {};
+
+  if (locale === 'fa') {
+    const complete = text.match(/منتظر\s+(.+?)\s+از\s+(.+?)(?=\s+(?:هستم|هستیم|ام|ایم)|[.!؟?]|$)/u);
+    if (complete?.[1]) values.subject = cleanWaitingValue(complete[1]);
+    if (complete?.[2]) values.waitingOn = cleanWaitingValue(complete[2]);
+
+    if (!values.subject) {
+      const subjectOnly = text.match(/منتظر\s+(.+?)(?=\s+(?:هستم|هستیم|ام|ایم)|[.!؟?]|$)/u);
+      if (subjectOnly?.[1] && !subjectOnly[1].includes(' از ')) values.subject = cleanWaitingValue(subjectOnly[1]);
+    }
+    return values;
+  }
+
+  const complete = text.match(/(?:i(?:'m| am)\s+)?waiting\s+for\s+(.+?)\s+from\s+(.+?)(?=[.!?]|$)/i);
+  if (complete?.[1]) values.subject = cleanWaitingValue(complete[1]);
+  if (complete?.[2]) values.waitingOn = cleanWaitingValue(complete[2]);
+
+  if (!values.subject) {
+    const subjectOnly = text.match(/(?:i(?:'m| am)\s+)?waiting\s+for\s+(.+?)(?=[.!?]|$)/i);
+    if (subjectOnly?.[1] && !/\sfrom\s/i.test(subjectOnly[1])) values.subject = cleanWaitingValue(subjectOnly[1]);
+  }
+  return values;
+};
+
 const findModule = (text: string, locale: TinyLocale) => {
   const normalized = text.toLocaleLowerCase();
   return moduleCatalog.find((module) => {
@@ -102,6 +131,19 @@ export const interpretLocally = (text: string, locale: TinyLocale): TinyAssistan
       actionId: 'tiny-meeting-cost.calculate',
       confidence: 0.98,
       values: extractMeetingCostValues(trimmed, locale),
+      source: 'local',
+    };
+  }
+
+  const isWaiting = locale === 'fa'
+    ? /منتظر/.test(trimmed)
+    : /\bwaiting\s+for\b/i.test(trimmed);
+
+  if (isWaiting) {
+    return {
+      actionId: 'tiny-waiting.create',
+      confidence: 0.95,
+      values: extractWaitingValues(trimmed, locale),
       source: 'local',
     };
   }
