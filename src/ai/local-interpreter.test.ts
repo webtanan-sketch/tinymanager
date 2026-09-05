@@ -18,6 +18,24 @@ describe('Tiny AI local interpreter', () => {
     expect(result.values.currency).toBe('USD');
   });
 
+  it('extracts a complete Persian meeting cost question', () => {
+    const result = interpretLocally('جلسه ۸ نفره ۹۰ دقیقه با هزینه ساعتی ۵۰۰ هزار تومان چقدر هزینه دارد؟', 'fa');
+    expect(result.actionId).toBe('tiny-meeting-cost.calculate');
+    expect(result.values.participants).toBe(8);
+    expect(result.values.durationMinutes).toBe(90);
+    expect(result.values.averageHourlyCost).toBe(500_000);
+    expect(result.values.currency).toBe('TOMAN');
+  });
+
+  it('extracts an English meeting cost question', () => {
+    const result = interpretLocally("What's the cost of a 90 minute meeting with 8 people at $45/hour?", 'en');
+    expect(result.actionId).toBe('tiny-meeting-cost.calculate');
+    expect(result.values.participants).toBe(8);
+    expect(result.values.durationMinutes).toBe(90);
+    expect(result.values.averageHourlyCost).toBe(45);
+    expect(result.values.currency).toBe('USD');
+  });
+
   it('recognizes a module enable command', () => {
     const result = interpretLocally('ماژول ریسک را فعال کن', 'fa');
     expect(result.actionId).toBe('core.module.enable');
