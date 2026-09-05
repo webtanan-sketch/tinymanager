@@ -1,37 +1,58 @@
 import type { TinyLocale } from '../core/types';
 import { moduleCatalog } from '../modules/catalog';
+import {
+  emptyTinyLanguageLexicon,
+  getTinyLanguageTerms,
+  resolveTinyLanguageConcept,
+  tinyLanguageMatches,
+  type TinyLanguageConceptId,
+  type TinyLanguageLexicon,
+} from './language-engine';
 import { detectCurrency, normalizeDigits, parseAmount } from './number-parser';
 import type { TinyAssistantInterpretation, TinyAssistantValue } from './types';
 
-const cleanupProjectName = (value: string): string =>
-  value
-    .replace(/^(?:به\s+نام|با\s+نام)\s+/u, '')
-    .replace(/\s+(?:با\s+بودجه|با\s+مبلغ|بودجه|مبلغ)\s*$/u, '')
-    .replace(/\s+(?:ایجاد|ثبت|بساز|create|add|make).*$/iu, '')
+const escapeRegex = (value: string): string => value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+const termAlternation = (terms: string[]): string =>
+  [...terms].sort((a, b) => b.length - a.length).map(escapeRegex).join('|');
+
+const cleanupProjectName = (
+  value: string,
+  locale: TinyLocale,
+  lexicon: TinyLanguageLexicon,
+): string => {
+  const createTerms = termAlternation(getTinyLanguageTerms('action.create', locale, lexicon));
+  return value
+    .replace(/^(?:به\s+نام|با\s+نام|named|called)\s+/iu, '')
+    .replace(createTerms ? new RegExp(`\\s+(?:${createTerms}).*$`, 'iu') : /$^/u, '')
     .replace(/[،,.]+$/u, '')
     .trim();
-
-const projectNameFromPersian = (text: string): string | null => {
-  const patterns = [
-    /پروژه(?:‌|\s)*(?:ای|ای‌)?\s*(?:به\s+نام|با\s+نام)\s+(.+?)(?=\s+(?:با\s+بودجه|با\s+مبلغ|بودجه|مبلغ)|$)/u,
-    /پروژه\s+(.+?)(?=\s+(?:با\s+بودجه|با\s+مبلغ|بودجه|مبلغ)|\s+(?:ایجاد|ثبت|بساز)|$)/u,
-  ];
-  for (const pattern of patterns) {
-    const match = text.match(pattern);
-    const name = match?.[1] ? cleanupProjectName(match[1]) : '';
-    if (name) return name;
-  }
-  return null;
 };
 
-const projectNameFromEnglish = (text: string): string | null => {
-  const patterns = [
-    /(?:create|add|make)\s+(?:a\s+)?project\s+(?:named\s+|called\s+)?(.+?)(?=\s+(?:with\s+)?(?:budget|amount)|$)/i,
-    /project\s+(?:named\s+|called\s+)?(.+?)(?=\s+(?:with\s+)?(?:budget|amount)|\s+(?:create|add|make)|$)/i,
-  ];
+const projectNameFromText = (
+  text: string,
+  locale: TinyLocale,
+  lexicon: TinyLanguageLexicon,
+): string | null => {
+  const projectTerms = termAlternation(getTinyLanguageTerms('entity.project', locale, lexicon));
+  const budgetTerms = termAlternation(getTinyLanguageTerms('field.budget', locale, lexicon));
+  const createTerms = termAlternation(getTinyLanguageTerms('action.create', locale, lexicon));
+  if (!projectTerms) return null;
+
+  const stopParts = [budgetTerms, createTerms].filter(Boolean);
+  const stop = stopParts.length > 0 ? `(?=\\s+(?:${stopParts.join('|')})|$)` : '$';
+  const patterns = locale === 'fa'
+    ? [
+        new RegExp(`(?:${projectTerms})(?:‌|\\s)*(?:ای|ای‌)?\\s*(?:به\\s+نام|با\\s+نام)\\s+(.+?)${stop}`, 'iu'),
+        new RegExp(`(?:${projectTerms})\\s+(.+?)${stop}`, 'iu'),
+      ]
+    : [
+        new RegExp(`(?:${createTerms || 'create|add|make'})\\s+(?:a\\s+)?(?:${projectTerms})\\s+(?:named\\s+|called\\s+)?(.+?)${stop}`, 'iu'),
+        new RegExp(`(?:${projectTerms})\\s+(?:named\\s+|called\\s+)?(.+?)${stop}`, 'iu'),
+      ];
+
   for (const pattern of patterns) {
     const match = text.match(pattern);
-    const name = match?.[1] ? cleanupProjectName(match[1]) : '';
+    const name = match?.[1] ? cleanupProjectName(match[1], locale, lexicon) : '';
     if (name) return name;
   }
   return null;
@@ -74,57 +95,111 @@ const extractMeetingCostValues = (text: string, locale: TinyLocale): Record<stri
 const cleanWaitingValue = (value: string): string =>
   value.replace(/[،,.!?؟]+$/u, '').replace(/\s+/g, ' ').trim();
 
-const extractWaitingValues = (text: string, locale: TinyLocale): Record<string, TinyAssistantValue> => {
+const extractWaitingValues = (
+  text: string,
+  locale: TinyLocale,
+  lexicon: TinyLanguageLexicon,
+): Record<string, TinyAssistantValue> => {
   const values: Record<string, TinyAssistantValue> = {};
+  const waitingTerms = termAlternation(getTinyLanguageTerms('state.waiting', locale, lexicon));
+  const fromTerms = termAlternation(getTinyLanguageTerms('connector.from', locale, lexicon));
+  if (!waitingTerms) return values;
 
-  if (locale === 'fa') {
-    const complete = text.match(/منتظر\s+(.+?)\s+از\s+(.+?)(?=\s+(?:هستم|هستیم|ام|ایم)|[.!؟?]|$)/u);
-    if (complete?.[1]) values.subject = cleanWaitingValue(complete[1]);
-    if (complete?.[2]) values.waitingOn = cleanWaitingValue(complete[2]);
+  const complete = locale === 'fa'
+    ? new RegExp(`(?:${waitingTerms})\\s+(.+?)\\s+(?:${fromTerms || 'از'})\\s+(.+?)(?=\\s+(?:هستم|هستیم|ام|ایم)|[.!؟?]|$)`, 'iu')
+    : new RegExp(`(?:i(?:'m| am)\\s+)?(?:${waitingTerms})\\s+(.+?)\\s+(?:${fromTerms || 'from'})\\s+(.+?)(?=[.!?]|$)`, 'iu');
 
-    if (!values.subject) {
-      const subjectOnly = text.match(/منتظر\s+(.+?)(?=\s+(?:هستم|هستیم|ام|ایم)|[.!؟?]|$)/u);
-      if (subjectOnly?.[1] && !subjectOnly[1].includes(' از ')) values.subject = cleanWaitingValue(subjectOnly[1]);
-    }
-    return values;
-  }
-
-  const complete = text.match(/(?:i(?:'m| am)\s+)?waiting\s+for\s+(.+?)\s+from\s+(.+?)(?=[.!?]|$)/i);
-  if (complete?.[1]) values.subject = cleanWaitingValue(complete[1]);
-  if (complete?.[2]) values.waitingOn = cleanWaitingValue(complete[2]);
+  const match = text.match(complete);
+  if (match?.[1]) values.subject = cleanWaitingValue(match[1]);
+  if (match?.[2]) values.waitingOn = cleanWaitingValue(match[2]);
 
   if (!values.subject) {
-    const subjectOnly = text.match(/(?:i(?:'m| am)\s+)?waiting\s+for\s+(.+?)(?=[.!?]|$)/i);
-    if (subjectOnly?.[1] && !/\sfrom\s/i.test(subjectOnly[1])) values.subject = cleanWaitingValue(subjectOnly[1]);
+    const subjectOnly = locale === 'fa'
+      ? new RegExp(`(?:${waitingTerms})\\s+(.+?)(?=\\s+(?:هستم|هستیم|ام|ایم)|[.!؟?]|$)`, 'iu')
+      : new RegExp(`(?:i(?:'m| am)\\s+)?(?:${waitingTerms})\\s+(.+?)(?=[.!?]|$)`, 'iu');
+    const subjectMatch = text.match(subjectOnly);
+    const candidate = subjectMatch?.[1] ?? '';
+    const containsFrom = getTinyLanguageTerms('connector.from', locale, lexicon)
+      .some((term) => new RegExp(`\\s${escapeRegex(term)}\\s`, 'iu').test(` ${candidate} `));
+    if (candidate && !containsFrom) values.subject = cleanWaitingValue(candidate);
   }
   return values;
 };
 
-const findModule = (text: string, locale: TinyLocale) => {
-  const normalized = text.toLocaleLowerCase();
-  return moduleCatalog.find((module) => {
-    const candidates = [module.id, module.name.fa, module.name.en];
-    if (module.id === 'tiny-risk') candidates.push('ریسک', 'risk');
-    if (module.id === 'tiny-waiting') candidates.push('منتظر پاسخ', 'waiting');
-    if (module.id === 'tiny-delegation') candidates.push('تفویض', 'delegation');
-    if (module.id === 'tiny-deadline') candidates.push('موعد', 'deadline');
-    if (module.id === 'tiny-raci') candidates.push('raci');
-    if (module.id === 'tiny-meeting-cost') candidates.push('هزینه جلسه', 'meeting cost');
-    if (module.id === 'tiny-project-health') candidates.push('سلامت پروژه', 'project health');
-    if (module.id === 'tiny-weekly-review') candidates.push('مرور هفتگی', 'weekly review');
-    if (module.id === 'tiny-decision-matrix') candidates.push('ماتریس تصمیم', 'decision matrix');
-    return candidates.some((candidate) => normalized.includes(candidate.toLocaleLowerCase()));
-  }) ?? null;
+const moduleConceptById: Partial<Record<string, TinyLanguageConceptId>> = {
+  'tiny-risk': 'module.risk',
+  'tiny-waiting': 'module.waiting',
+  'tiny-delegation': 'module.delegation',
+  'tiny-deadline': 'module.deadline',
+  'tiny-raci': 'module.raci',
+  'tiny-meeting-cost': 'module.meeting-cost',
+  'tiny-project-health': 'module.project-health',
+  'tiny-weekly-review': 'module.weekly-review',
+  'tiny-decision-matrix': 'module.decision-matrix',
 };
 
-export const interpretLocally = (text: string, locale: TinyLocale): TinyAssistantInterpretation => {
+const findModule = (
+  text: string,
+  locale: TinyLocale,
+  lexicon: TinyLanguageLexicon,
+) => moduleCatalog.find((module) => {
+  const conceptId = moduleConceptById[module.id];
+  if (conceptId && tinyLanguageMatches(text, conceptId, locale, lexicon)) return true;
+  const normalized = text.toLocaleLowerCase();
+  return [module.id, module.name.fa, module.name.en]
+    .some((candidate) => normalized.includes(candidate.toLocaleLowerCase()));
+}) ?? null;
+
+const extractTeachValues = (
+  text: string,
+  locale: TinyLocale,
+  lexicon: TinyLanguageLexicon,
+): Record<string, TinyAssistantValue> | null => {
+  const patterns = locale === 'fa'
+    ? [
+        /(?:واژه|کلمه)\s+[«"]?(.+?)[»"]?\s+را\s+برای\s+[«"]?(.+?)[»"]?\s+(?:اضافه کن|بشناس|یاد بگیر)/u,
+        /برای\s+[«"]?(.+?)[»"]?\s+(?:واژه|کلمه)\s+[«"]?(.+?)[»"]?\s+را\s+(?:اضافه کن|بشناس|یاد بگیر)/u,
+      ]
+    : [
+        /(?:add|learn)\s+(?:the\s+)?(?:word|phrase)?\s*["']?(.+?)["']?\s+(?:for|as)\s+["']?(.+?)["']?(?:\s|$)/i,
+      ];
+
+  for (let index = 0; index < patterns.length; index += 1) {
+    const match = text.match(patterns[index]);
+    if (!match?.[1] || !match?.[2]) continue;
+    const swapped = locale === 'fa' && index === 1;
+    const phrase = (swapped ? match[2] : match[1]).trim();
+    const target = (swapped ? match[1] : match[2]).trim();
+    const conceptId = resolveTinyLanguageConcept(target, locale, lexicon);
+    if (!conceptId || conceptId === 'system.teach') return null;
+    return { phrase, conceptId, locale };
+  }
+  return null;
+};
+
+export const interpretLocally = (
+  text: string,
+  locale: TinyLocale,
+  lexicon: TinyLanguageLexicon = emptyTinyLanguageLexicon(),
+): TinyAssistantInterpretation => {
   const trimmed = text.trim();
-  const normalized = normalizeDigits(trimmed).toLocaleLowerCase();
   const values: Record<string, TinyAssistantValue> = {};
 
-  const isMeetingCost = locale === 'fa'
-    ? /جلسه/.test(trimmed) && /(هزینه|چقدر|قیمت)/.test(trimmed)
-    : /\bmeeting\b/i.test(trimmed) && /\b(cost|how much|price)\b/i.test(trimmed);
+  if (tinyLanguageMatches(trimmed, 'system.teach', locale, lexicon)) {
+    const teachValues = extractTeachValues(trimmed, locale, lexicon);
+    if (teachValues) {
+      return {
+        actionId: 'core.language.alias.add',
+        confidence: 0.99,
+        values: teachValues,
+        source: 'local',
+      };
+    }
+  }
+
+  const isMeetingCost =
+    tinyLanguageMatches(trimmed, 'entity.meeting', locale, lexicon)
+    && tinyLanguageMatches(trimmed, 'field.cost', locale, lexicon);
 
   if (isMeetingCost) {
     return {
@@ -135,25 +210,21 @@ export const interpretLocally = (text: string, locale: TinyLocale): TinyAssistan
     };
   }
 
-  const isWaiting = locale === 'fa'
-    ? /منتظر/.test(trimmed)
-    : /\bwaiting\s+for\b/i.test(trimmed);
-
-  if (isWaiting) {
+  if (tinyLanguageMatches(trimmed, 'state.waiting', locale, lexicon)) {
     return {
       actionId: 'tiny-waiting.create',
       confidence: 0.95,
-      values: extractWaitingValues(trimmed, locale),
+      values: extractWaitingValues(trimmed, locale, lexicon),
       source: 'local',
     };
   }
 
-  const isProjectCreate = locale === 'fa'
-    ? /پروژه/.test(trimmed) && /(ایجاد|ثبت|بساز|اضافه)/.test(trimmed)
-    : /\bproject\b/i.test(trimmed) && /\b(create|add|make)\b/i.test(trimmed);
+  const isProjectCreate =
+    tinyLanguageMatches(trimmed, 'entity.project', locale, lexicon)
+    && tinyLanguageMatches(trimmed, 'action.create', locale, lexicon);
 
   if (isProjectCreate) {
-    const name = locale === 'fa' ? projectNameFromPersian(trimmed) : projectNameFromEnglish(trimmed);
+    const name = projectNameFromText(trimmed, locale, lexicon);
     const amount = parseAmount(trimmed);
     const fallbackCurrency = locale === 'fa' ? 'TOMAN' : 'USD';
     if (name) values.name = name;
@@ -167,14 +238,10 @@ export const interpretLocally = (text: string, locale: TinyLocale): TinyAssistan
     };
   }
 
-  const module = findModule(trimmed, locale);
+  const module = findModule(trimmed, locale, lexicon);
   if (module) {
-    const enable = locale === 'fa'
-      ? /(فعال|روشن|اضافه)/.test(trimmed)
-      : /\b(enable|activate|turn on)\b/i.test(normalized);
-    const disable = locale === 'fa'
-      ? /(غیرفعال|خاموش)/.test(trimmed)
-      : /\b(disable|deactivate|turn off)\b/i.test(normalized);
+    const disable = tinyLanguageMatches(trimmed, 'action.disable', locale, lexicon);
+    const enable = !disable && tinyLanguageMatches(trimmed, 'action.enable', locale, lexicon);
 
     if (enable || disable) {
       return {
@@ -185,7 +252,7 @@ export const interpretLocally = (text: string, locale: TinyLocale): TinyAssistan
       };
     }
 
-    if (locale === 'fa' ? /(باز|برو|نمایش)/.test(trimmed) : /\b(open|show|go to)\b/i.test(normalized)) {
+    if (tinyLanguageMatches(trimmed, 'action.open', locale, lexicon)) {
       return {
         actionId: 'core.module.open',
         confidence: 0.96,
@@ -200,6 +267,8 @@ export const interpretLocally = (text: string, locale: TinyLocale): TinyAssistan
     confidence: 0,
     values: {},
     source: 'local',
-    reason: locale === 'fa' ? 'فرمان با اطمینان کافی تشخیص داده نشد.' : 'The command could not be recognized with enough confidence.',
+    reason: locale === 'fa'
+      ? 'هیچ الگوی تعریف‌شده‌ای با این درخواست تطبیق نداشت.'
+      : 'The request did not match any defined language pattern.',
   };
 };
