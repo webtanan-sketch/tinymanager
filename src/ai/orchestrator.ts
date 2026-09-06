@@ -1,5 +1,6 @@
 import type { TinyLocale, TinyManagerStorage } from '../core/types';
-import { getAssistantAction } from './action-registry';
+import { getAssistantAction } from './action-resolver';
+import { interpretExtended } from './extended-interpreter';
 import { createTinyLanguageLearningPrompt } from './language-learning';
 import {
   TinyLanguageRepository,
@@ -8,8 +9,8 @@ import {
   type TinyLanguageConceptId,
   type TinyLanguageLexicon,
 } from './language-engine';
-import { detectCurrency, parseAmount } from './number-parser';
 import { interpretLocally } from './local-interpreter';
+import { detectCurrency, parseAmount } from './number-parser';
 import type {
   TinyAssistantDraft,
   TinyAssistantInterpretation,
@@ -97,7 +98,7 @@ export class TinyAssistantOrchestrator {
 
   private async interpret(text: string, locale: TinyLocale): Promise<TinyAssistantInterpretation> {
     const lexicon = await this.loadLexicon();
-    return interpretLocally(text, locale, lexicon);
+    return interpretExtended(text, locale, lexicon) ?? interpretLocally(text, locale, lexicon);
   }
 
   async prepareLanguageAlias(
@@ -178,6 +179,7 @@ export class TinyAssistantOrchestrator {
           draft: null,
         };
       }
+
       const result = await action.execute(draft.values, { locale, storage: this.storage });
 
       if (result.ok && draft.actionId === 'core.language.alias.add') {
@@ -200,12 +202,7 @@ export class TinyAssistantOrchestrator {
 
     if (draft?.phase === 'collecting') {
       const next = fillMissingValue(draft, cleaned, locale);
-      const firstMissing = next.missingFieldIds[0];
-      if (firstMissing) {
-        const supplied = next.values[firstMissing];
-        if (supplied === null || supplied === '') {
-          return { text: questionFor(next, locale), kind: 'question', draft: next };
-        }
+      if (next.missingFieldIds.length > 0) {
         return { text: questionFor(next, locale), kind: 'question', draft: next };
       }
       return {

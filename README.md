@@ -25,7 +25,7 @@
 
 > **اصل محصول:** TinyManager همراه مدیر بزرگ می‌شود؛ نه اینکه از روز اول او را با امکانات شلوغ کند.
 
-## وضعیت فعلی
+## وضعیت فعلی — v0.1.0-alpha.2
 
 هسته پروژه اکنون اجرایی است و این قابلیت‌ها را دارد:
 
@@ -35,12 +35,14 @@
 - Module Registry و Module Manager
 - IndexedDB و Storage API مشترک
 - Backup / Restore کل Core و ماژول‌ها
-- Shared Projects و Shared People پایه
+- Shared Projects و Shared People با Alias و تشخیص ابهام نام
 - Webtanan Jalali Date Engine برای تاریخ فارسی
 - Tiny AI مبتنی بر **Tiny Language Engine (TLE)**، کاملاً Local و بدون LLM خارجی
+- اجرای فرمان‌های کنترل‌شده برای ماژول‌های مدیریتی
 - یادگیری واژگان جدید با تأیید مدیر
-- یادگیری درجا برای عبارت‌های ناشناخته
-- Training History محلی برای توسعه پیشنهادهای آینده
+- Vocabulary Manager برای مدیریت واژگان اختصاصی
+- Suggestion Center بر اساس Training History تأییدشده
+- Route اجرایی برای تمام ماژول‌های Alpha داخل Core
 
 ### ماژول‌های اجرایی فعلی
 
@@ -48,9 +50,15 @@
 |---|---|---|
 | `tiny-decision-matrix` | Alpha | مقایسه و رتبه‌بندی گزینه‌ها با معیارهای وزن‌دار |
 | `tiny-meeting-cost` | Alpha | محاسبه هزینه مالی و نفر-ساعت جلسه |
-| `tiny-waiting` | Alpha | ثبت و پیگیری مواردی که منتظر پاسخ دیگران هستند |
+| `tiny-waiting` | Alpha | ثبت و پیگیری موارد منتظر پاسخ با Shared People |
+| `tiny-delegation` | Alpha | ثبت و پیگیری کارهای تفویض‌شده |
+| `tiny-deadline` | Alpha | ثبت موعد و عبارت‌های زمانی طبیعی |
+| `tiny-risk` | Alpha | ثبت ریسک و امتیاز احتمال × اثر |
+| `tiny-raci` | Alpha | ثبت Responsible / Accountable برای فعالیت‌ها |
+| `tiny-weekly-review` | Alpha | ساخت مرور هفتگی از سیگنال ماژول‌ها |
+| `tiny-project-health` | Alpha | محاسبه امتیاز سلامت از Deadline/Risk/Waiting/Delegation |
 
-ماژول‌های RACI، Risk، Delegation، Deadline، Weekly Review و Project Health نیز Repository مستقل و Foundation استاندارد دارند و به‌ترتیب به Core متصل می‌شوند.
+هر ۹ ماژول هم **Standalone** اجرا می‌شوند و هم از طریق Package مستقل خودشان داخل TinyManager Core قرار می‌گیرند؛ Domain Logic داخل Core کپی نشده است.
 
 ## Tiny AI بدون LLM خارجی
 
@@ -79,6 +87,18 @@ TLE فقط واژه‌ها، مترادف‌ها و الگوهای تعریف‌
 ۵۰۰ میلیون
 ```
 
+Tiny AI در Alpha.2 علاوه بر فرمان‌های Core می‌تواند درخواست‌های کنترل‌شده ماژول‌ها را نیز Route و اجرا کند؛ از جمله:
+
+```text
+پیگیری قرارداد را به علی بسپار
+موعد ارسال قرارداد را برای فردا ثبت کن
+ریسک تاخیر تامین را ثبت کن احتمال ۴ اثر ۵
+مرور هفتگی
+سلامت پروژه چطوره
+```
+
+عملیات تغییردهنده داده قبل از اجرا Preview و Confirm می‌شوند. گزارش‌هایی مانند Weekly Review و Project Health فقط داده‌های Local موجود را می‌خوانند.
+
 ### اطلاعات ناقص
 
 اگر مدیر بنویسد:
@@ -87,44 +107,25 @@ TLE فقط واژه‌ها، مترادف‌ها و الگوهای تعریف‌
 پروژه نمایشگاه ایجاد کن
 ```
 
-Tiny AI فرم کامل باز نمی‌کند؛ فقط می‌پرسد:
-
-```text
-مبلغ/بودجه را وارد کن.
-```
+Tiny AI فرم کامل باز نمی‌کند؛ فقط داده ضروری بعدی را می‌پرسد.
 
 ### واژه ناشناخته و یادگیری درجا
 
-اگر مدیر بنویسد:
+اگر مدیر عبارتی بنویسد که هنوز در واژگان تعریف نشده، Tiny AI حدس اجرایی نمی‌زند. همان‌جا امکان نسبت دادن آن عبارت به یک مفهوم کنترل‌شده TLE را می‌دهد.
 
-```text
-پروژه انبار با بودجه ۲۰۰ میلیون راه بینداز
-```
-
-و `راه بینداز` هنوز تعریف نشده باشد، Tiny AI حدس نمی‌زند. همان‌جا یک کارت آموزش نشان می‌دهد:
-
-```text
-عبارت جدید: راه بینداز
-
-این عبارت مربوط به کدام بخش است؟
-[ انتخاب مفهوم از قابلیت‌های موجود TinyManager ]
-```
-
-اگر Context روشن باشد، TLE می‌تواند یک **پیشنهاد غیرالزامی** مثل «ایجاد» ارائه کند. انتخاب نهایی و تأیید با مدیر است.
-
-بعد از تأیید، Alias در:
+Aliasها در:
 
 ```text
 core.language.aliases.v1
 ```
 
-و Context آموزش در:
+و Context آموزش تأییدشده در:
 
 ```text
 core.language.training.v1
 ```
 
-ذخیره می‌شود. هر دو Local هستند و همراه Backup منتقل می‌شوند.
+ذخیره می‌شوند. هر دو Local هستند، از «مرکز زبان و یادگیری» قابل مدیریت‌اند و همراه Backup منتقل می‌شوند.
 
 جزئیات در [`docs/TINY_LANGUAGE_ENGINE.md`](docs/TINY_LANGUAGE_ENGINE.md).
 
@@ -138,7 +139,7 @@ core.language.training.v1
 - چه موعدی نزدیک یا عقب‌افتاده است؟
 - کدام ریسک مهم است؟
 - چه تصمیمی باید گرفته شود؟
-- وضعیت پروژه‌ها چگونه است؟
+- وضعیت کلی کارها و پروژه‌ها چگونه است؟
 
 TinyManager این مسائل را به ماژول‌های کوچک تقسیم می‌کند، ولی داده و تجربه کاربری را در یک Core مشترک نگه می‌دارد.
 
@@ -149,17 +150,35 @@ TinyManager این مسائل را به ماژول‌های کوچک تقسیم 
 | Decision Matrix | `tiny-decision-matrix` | مقایسه و امتیازدهی گزینه‌ها با معیارهای وزن‌دار |
 | Meeting Cost | `tiny-meeting-cost` | محاسبه هزینه واقعی جلسه |
 | RACI | `tiny-raci` | تعیین Responsible / Accountable / Consulted / Informed |
-| Risk | `tiny-risk` | ثبت ریسک و Heatmap احتمال × اثر |
+| Risk | `tiny-risk` | ثبت ریسک و امتیاز احتمال × اثر |
 | Waiting For | `tiny-waiting` | پیگیری مواردی که منتظر پاسخ دیگران هستند |
 | Delegation | `tiny-delegation` | پیگیری کارهای تفویض‌شده |
 | Deadline | `tiny-deadline` | رادار موعدهای نزدیک و عقب‌افتاده |
-| Weekly Review | `tiny-weekly-review` | مرور ساختاریافته هفتگی مدیر |
-| Project Health | `tiny-project-health` | سنجش سریع سلامت پروژه |
+| Weekly Review | `tiny-weekly-review` | مرور هفتگی تولیدشده از داده ماژول‌ها |
+| Project Health | `tiny-project-health` | سنجش سریع سلامت بر اساس سیگنال‌های واقعی |
 
-هر ماژول باید دو حالت داشته باشد:
+هر ماژول دو حالت دارد:
 
-1. **Standalone** — مستقل اجرا شود.
-2. **TinyManager Module** — با همان Domain Logic داخل Core نصب شود.
+1. **Standalone** — مستقل اجرا می‌شود.
+2. **TinyManager Module** — با همان Domain Logic داخل Core استفاده می‌شود.
+
+## Shared People
+
+ماژول‌های مرتبط با افراد به‌جای ساخت دفترچه‌های تکراری، از Shared People هسته استفاده می‌کنند.
+
+- نام فارسی/English Normalize می‌شود.
+- Alias برای هر شخص پشتیبانی می‌شود.
+- Match یکتا مستقیماً Resolve می‌شود.
+- اگر چند شخص با یک نام Match شوند، سیستم به‌جای حدس زدن درخواست نام دقیق‌تر می‌کند.
+- Waiting و Delegation شناسه `personId` را کنار نام خوانا ذخیره می‌کنند.
+
+## Weekly Review و Project Health
+
+این دو ماژول برای مدیر فرم طولانی ایجاد نمی‌کنند.
+
+**Weekly Review** سیگنال‌های Delegation، Deadline، Risk و Waiting را می‌خواند و یک مرور قابل‌توضیح تولید می‌کند.
+
+**Project Health** از همین داده‌ها یک امتیاز ۰ تا ۱۰۰ و دلایل وضعیت ارائه می‌کند. این محاسبات قطعی و Local هستند و به سرویس بیرونی وابسته نیستند.
 
 ## دو زبان از هسته، نه به‌عنوان افزونه
 
@@ -201,10 +220,13 @@ TinyManager Core
 ├── Dashboard
 ├── Tiny AI / TLE
 │   ├── Controlled vocabulary
-│   ├── Intent patterns
+│   ├── Core interpreter
+│   ├── Module interpreters
+│   ├── Action resolver
 │   ├── Slot extraction
 │   ├── Inline learning
-│   └── Suggestion layer
+│   ├── Vocabulary Manager
+│   └── Suggestion Center
 ├── i18n + RTL/LTR
 ├── Module Registry
 ├── Storage API
@@ -239,7 +261,7 @@ Modules
 - Tiny Language Engine به اینترنت نیاز ندارد.
 - هیچ API Key یا LLM خارجی برای فرمان‌های اصلی لازم نیست.
 - ماژول‌ها از Storage API هسته استفاده می‌کنند.
-- Backup یکپارچه، داده Core، ماژول‌ها و واژگان آموزشی را منتقل می‌کند.
+- Backup یکپارچه، داده Core، ماژول‌ها، Shared People و واژگان آموزشی را منتقل می‌کند.
 
 در آینده Cloud Sync می‌تواند به‌صورت Adapter اضافه شود، بدون تغییر Domain Logic ماژول‌ها.
 
@@ -285,25 +307,26 @@ npm run build
 
 - [x] Stack اصلی TypeScript + React + Vite
 - [x] App Shell دو‌زبانه RTL/LTR
-- [x] Module Registry
+- [x] Module Registry و Module Manager
 - [x] Storage API روی IndexedDB
 - [x] Date Service با Webtanan Jalali Date Engine
 - [x] Backup / Restore
 - [x] Tiny Language Engine آفلاین
 - [x] Runtime vocabulary teaching
-- [x] Inline learning برای عبارت ناشناخته
-- [x] Reference Module: Decision Matrix
+- [x] Vocabulary Manager + Suggestion Center
+- [x] Shared People integration برای Waiting و Delegation
+- [x] Decision Matrix Module
 - [x] Meeting Cost Module
 - [x] Waiting For Module
-- [ ] Shared People integration across all modules
-- [ ] Delegation Module
-- [ ] Deadline Module + natural date phrases
-- [ ] Risk Module
-- [ ] RACI Module
-- [ ] Weekly Review auto-aggregation
-- [ ] Project Health scoring
-- [ ] Dashboard Widgets
-- [ ] PWA Offline Mode
+- [x] Delegation Module
+- [x] Deadline Module + natural date phrases
+- [x] Risk Module
+- [x] RACI Module
+- [x] Weekly Review auto-aggregation
+- [x] Project Health scoring
+- [x] Route اجرایی تمام ۹ ماژول در Core
+- [ ] Dashboard Widgets غنی از داده
+- [ ] PWA Offline Mode کامل
 - [ ] اولین Release عمومی Alpha
 
 ## مشارکت

@@ -1,6 +1,6 @@
 {
   "name": "tinymanager",
-  "version": "0.1.0-alpha.1",
+  "version": "0.1.0-alpha.2",
   "private": true,
   "description": "A modular, local-first bilingual manager workspace with first-class Persian RTL support.",
   "type": "module",
@@ -21,9 +21,15 @@
     "react": ">=19 <20",
     "react-dom": ">=19 <20",
     "react-router-dom": ">=7 <8",
+    "tiny-deadline": "github:webtanan-sketch/tiny-deadline#20b084bb47a9b798a4d0db468325a871ba758f21",
     "tiny-decision-matrix": "github:webtanan-sketch/tiny-decision-matrix#7a66b8fa70bb114235c882a3a33b54c4a8eba301",
+    "tiny-delegation": "github:webtanan-sketch/tiny-delegation#44147c2f43fe782f805e0df5ac92b70d4b40e678",
     "tiny-meeting-cost": "github:webtanan-sketch/tiny-meeting-cost#bce6aad578c860e1e3f8edc16bb6bd34981062da",
-    "tiny-waiting": "github:webtanan-sketch/tiny-waiting#f5f3ee4344a54803493eba7d2d24f36648b9543b",
+    "tiny-project-health": "github:webtanan-sketch/tiny-project-health#8b629c15cda9303c71bba19491de9d3fdb35348d",
+    "tiny-raci": "github:webtanan-sketch/tiny-raci#0f52e482d6cdb2da3e3e33d167ef1635d69769e1",
+    "tiny-risk": "github:webtanan-sketch/tiny-risk#2492afe141e2999c52441484883bbbfacb21472b",
+    "tiny-waiting": "github:webtanan-sketch/tiny-waiting#e945d1c8901b932c5e9530b0809b6d6e0a496630",
+    "tiny-weekly-review": "github:webtanan-sketch/tiny-weekly-review#868f72e92e54bba85b634c139d5128c1c9bf767f",
     "webtanan-jalali-date-engine": "github:webtanan-sketch/webtanan-jalali-date-engine#5fc682ca3c7ed97923b152650516feaaa40b6a50"
   },
   "devDependencies": {
