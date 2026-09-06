@@ -6,6 +6,7 @@ import { TinyRiskRepository } from 'tiny-risk';
 import { TinyWaitingRepository } from 'tiny-waiting';
 import { buildWeeklyReview } from 'tiny-weekly-review';
 import { TinyPeopleRepository } from '../core/people';
+import type { TinyManagerStorage } from '../core/types';
 import type { TinyAssistantActionDefinition, TinyAssistantValue } from './types';
 
 const asString = (value: TinyAssistantValue | undefined): string => typeof value === 'string' ? value.trim() : '';
@@ -16,7 +17,7 @@ const changed = (name: string) => {
   if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent(name));
 };
 
-async function resolvePerson(name: string, storage: Parameters<TinyPeopleRepository['constructor']>[0]) {
+async function resolvePerson(name: string, storage: TinyManagerStorage) {
   const people = new TinyPeopleRepository(storage);
   const resolution = await people.resolveUnique(name);
   if (resolution.ambiguous.length > 1) {
@@ -159,10 +160,12 @@ const createRisk: TinyAssistantActionDefinition = {
   },
   async execute(values, context) {
     const repository = new TinyRiskRepository(context.storage);
+    const probability = asOptionalNumber(values.probability);
+    const impact = asOptionalNumber(values.impact);
     const item = await repository.create({
       title: asString(values.title),
-      probability: asOptionalNumber(values.probability),
-      impact: asOptionalNumber(values.impact),
+      ...(probability !== undefined ? { probability } : {}),
+      ...(impact !== undefined ? { impact } : {}),
     });
     changed('tinymanager:risk-changed');
     return {
@@ -222,7 +225,7 @@ const ageDays = (iso: string | undefined, now: number): number => {
   return Number.isNaN(time) ? 0 : Math.max(0, Math.floor((now - time) / 86_400_000));
 };
 
-async function readSignals(storage: Parameters<TinyPeopleRepository['constructor']>[0]) {
+async function readSignals(storage: TinyManagerStorage) {
   const [delegations, deadlines, risks, waiting] = await Promise.all([
     storage.get<StaleDelegationSignal[]>('module.tiny-delegation.items'),
     storage.get<DeadlineSignal[]>('module.tiny-deadline.items'),
