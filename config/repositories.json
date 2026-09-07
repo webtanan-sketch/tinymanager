@@ -1,0 +1,74 @@
+{
+  "schemaVersion": 1,
+  "owner": "webtanan-sketch",
+  "core": {
+    "id": "tinymanager",
+    "role": "core",
+    "repository": "https://github.com/webtanan-sketch/tinymanager.git",
+    "ref": "main"
+  },
+  "modules": [
+    {
+      "id": "tiny-decision-matrix",
+      "role": "module",
+      "repository": "https://github.com/webtanan-sketch/tiny-decision-matrix.git",
+      "ref": "7a66b8fa70bb114235c882a3a33b54c4a8eba301"
+    },
+    {
+      "id": "tiny-meeting-cost",
+      "role": "module",
+      "repository": "https://github.com/webtanan-sketch/tiny-meeting-cost.git",
+      "ref": "bce6aad578c860e1e3f8edc16bb6bd34981062da"
+    },
+    {
+      "id": "tiny-raci",
+      "role": "module",
+      "repository": "https://github.com/webtanan-sketch/tiny-raci.git",
+      "ref": "0f52e482d6cdb2da3e3e33d167ef1635d69769e1"
+    },
+    {
+      "id": "tiny-risk",
+      "role": "module",
+      "repository": "https://github.com/webtanan-sketch/tiny-risk.git",
+      "ref": "2492afe141e2999c52441484883bbbfacb21472b"
+    },
+    {
+      "id": "tiny-waiting",
+      "role": "module",
+      "repository": "https://github.com/webtanan-sketch/tiny-waiting.git",
+      "ref": "e945d1c8901b932c5e9530b0809b6d6e0a496630"
+    },
+    {
+      "id": "tiny-delegation",
+      "role": "module",
+      "repository": "https://github.com/webtanan-sketch/tiny-delegation.git",
+      "ref": "44147c2f43fe782f805e0df5ac92b70d4b40e678"
+    },
+    {
+      "id": "tiny-deadline",
+      "role": "module",
+      "repository": "https://github.com/webtanan-sketch/tiny-deadline.git",
+      "ref": "20b084bb47a9b798a4d0db468325a871ba758f21"
+    },
+    {
+      "id": "tiny-weekly-review",
+      "role": "module",
+      "repository": "https://github.com/webtanan-sketch/tiny-weekly-review.git",
+      "ref": "868f72e92e54bba85b634c139d5128c1c9bf767f"
+    },
+    {
+      "id": "tiny-project-health",
+      "role": "module",
+      "repository": "https://github.com/webtanan-sketch/tiny-project-health.git",
+      "ref": "8b629c15cda9303c71bba19491de9d3fdb35348d"
+    }
+  ],
+  "shared": [
+    {
+      "id": "webtanan-jalali-date-engine",
+      "role": "shared",
+      "repository": "https://github.com/webtanan-sketch/webtanan-jalali-date-engine.git",
+      "ref": "5fc682ca3c7ed97923b152650516feaaa40b6a50"
+    }
+  ]
+}
