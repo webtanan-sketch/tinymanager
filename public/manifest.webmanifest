@@ -1,19 +1,36 @@
 {
+  "$schema": "https://json.schemastore.org/web-manifest-combined.json",
+  "id": "./",
   "name": "TinyManager",
   "short_name": "TinyManager",
   "description": "Small tools. Better management. A modular local-first bilingual manager workspace.",
   "start_url": "./#/",
+  "scope": "./",
   "display": "standalone",
   "background_color": "#07101d",
   "theme_color": "#0b1628",
   "lang": "fa",
   "dir": "rtl",
+  "categories": ["business", "productivity"],
+  "prefer_related_applications": false,
   "icons": [
     {
       "src": "icon.svg",
       "sizes": "any",
       "type": "image/svg+xml",
       "purpose": "any maskable"
+    }
+  ],
+  "shortcuts": [
+    {
+      "name": "Dashboard",
+      "short_name": "Dashboard",
+      "url": "./#/"
+    },
+    {
+      "name": "Modules",
+      "short_name": "Modules",
+      "url": "./#/modules"
     }
   ]
 }
