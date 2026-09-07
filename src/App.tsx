@@ -27,6 +27,7 @@ import {
 } from 'lucide-react';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { HashRouter, Navigate, NavLink, Route, Routes } from 'react-router-dom';
+import { NetworkStatus } from './components/NetworkStatus';
 import { TinyAssistantCommandBar } from './components/TinyAssistantCommandBar';
 import { createBackup, downloadBackupFile, restoreBackup } from './core/backup';
 import { tinyDateService } from './core/date-service';
@@ -160,6 +161,7 @@ function AppShell({ children }: { children: ReactNode }) {
         <header className="tm-header">
           <TinyAssistantCommandBar />
           <div className="tm-header-actions">
+            <NetworkStatus />
             <button className="tm-icon-button" type="button" onClick={() => setTheme(effectiveTheme === 'dark' ? 'light' : 'dark')} aria-label={t('theme')} title={t('theme')}>
               {effectiveTheme === 'dark' ? <Sun size={19} /> : <Moon size={19} />}
             </button>
