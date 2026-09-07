@@ -1,0 +1,106 @@
+name: TinyManager Packaging Check
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'packaging/**'
+      - 'scripts/**'
+      - 'config/**'
+      - 'package.json'
+      - 'vite.config.ts'
+      - '.github/workflows/release.yml'
+      - '.github/workflows/packaging-check.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  windows-package:
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Use npm 11.6
+        shell: pwsh
+        run: npm install --global npm@11.6.0
+
+      - name: Install dependencies
+        shell: pwsh
+        run: npm install
+
+      - name: Build verified PWA
+        shell: pwsh
+        run: npm run build
+
+      - name: Validate PowerShell scripts
+        shell: pwsh
+        run: |
+          $files = @(
+            'packaging/windows/Start-TinyManager.ps1',
+            'scripts/bootstrap-source.ps1',
+            'scripts/build-release-assets.ps1'
+          )
+          foreach ($file in $files) {
+            [void][ScriptBlock]::Create((Get-Content $file -Raw))
+            Write-Host "PowerShell syntax OK: $file"
+          }
+
+      - name: Smoke test localhost launcher
+        shell: pwsh
+        run: |
+          $portable = Join-Path $PWD '.smoke-portable'
+          New-Item -ItemType Directory -Force -Path (Join-Path $portable 'app') | Out-Null
+          Copy-Item -Path 'dist/*' -Destination (Join-Path $portable 'app') -Recurse -Force
+          Copy-Item 'packaging/windows/Start-TinyManager.ps1' $portable
+
+          $job = Start-Job -ScriptBlock {
+            param($root)
+            & (Join-Path $root 'Start-TinyManager.ps1') -PreferredPort 47831 -NoBrowser
+          } -ArgumentList $portable
+
+          try {
+            $ready = $false
+            for ($i = 0; $i -lt 24; $i++) {
+              Start-Sleep -Milliseconds 250
+              try {
+                $response = Invoke-WebRequest 'http://127.0.0.1:47831/' -UseBasicParsing -TimeoutSec 1
+                if ($response.StatusCode -eq 200 -and $response.Content -match 'TinyManager') {
+                  $ready = $true
+                  break
+                }
+              } catch {}
+            }
+            if (-not $ready) {
+              Receive-Job $job -Keep | Write-Host
+              throw 'TinyManager localhost launcher smoke test failed.'
+            }
+          } finally {
+            Stop-Job $job -ErrorAction SilentlyContinue
+            Remove-Job $job -Force -ErrorAction SilentlyContinue
+          }
+
+      - name: Install Inno Setup
+        shell: pwsh
+        run: choco install innosetup --yes --no-progress
+
+      - name: Build exact release assets
+        shell: pwsh
+        run: ./scripts/build-release-assets.ps1 -OutputDirectory (Join-Path $PWD 'release-check')
+
+      - name: Verify release outputs
+        shell: pwsh
+        run: |
+          $manifest = Get-Content 'release-check/release-manifest.json' -Raw | ConvertFrom-Json
+          $required = @($manifest.setup, $manifest.portable, $manifest.web, $manifest.checksums)
+          foreach ($file in $required) {
+            if (-not (Test-Path $file)) { throw "Missing release artifact: $file" }
+            Write-Host "Verified: $file"
+          }
