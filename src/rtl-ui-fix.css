@@ -1,0 +1,63 @@
+/* TinyManager RTL/LTR navigation improvements */
+
+.tm-nav-item {
+  min-height: 48px;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 12px 18px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  cursor: pointer;
+  border-radius: 12px;
+  transition: background .15s ease, transform .15s ease;
+}
+
+.tm-nav-item:hover {
+  background: rgba(255,255,255,.08);
+}
+
+.tm-nav-item.is-active {
+  background: rgba(90,140,255,.22);
+}
+
+[dir="rtl"] .tm-shell {
+  direction: rtl;
+}
+
+[dir="rtl"] .tm-sidebar {
+  order: 2;
+}
+
+[dir="rtl"] .tm-main {
+  order: 1;
+}
+
+[dir="ltr"] .tm-sidebar {
+  order: 1;
+}
+
+[dir="ltr"] .tm-main {
+  order: 2;
+}
+
+[dir="rtl"] .tm-brand,
+[dir="rtl"] .tm-nav-item,
+[dir="rtl"] .tm-sidebar-card {
+  text-align: right;
+}
+
+[dir="rtl"] .tm-nav-item {
+  flex-direction: row;
+}
+
+.tm-nav-item span {
+  flex: 1;
+}
+
+@media (max-width: 900px) {
+  .tm-nav-item {
+    min-height: 56px;
+    padding: 14px 20px;
+  }
+}
