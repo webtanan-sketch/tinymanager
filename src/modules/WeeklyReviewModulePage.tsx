@@ -2,61 +2,42 @@ import { useEffect, useState } from 'react';
 import { WeeklyReviewWorkspace, type WeeklySignals } from 'tiny-weekly-review';
 import 'tiny-weekly-review/style.css';
 import { useI18n } from '../core/i18n';
+import { collectManagerSignals, MANAGER_SIGNAL_EVENTS } from '../core/manager-signals';
 import { tinyStorage } from '../core/storage';
 
-type DelegationSignal = { status?: string };
-type DeadlineSignal = { status?: string; dueAt?: string };
-type RiskSignal = { status?: string; score?: number };
-type WaitingSignal = { status?: string; createdAt?: string; updatedAt?: string };
-
-const ageDays = (iso: string | undefined, now: number): number => {
-  if (!iso) return 0;
-  const time = new Date(iso).getTime();
-  return Number.isNaN(time) ? 0 : Math.max(0, Math.floor((now - time) / 86_400_000));
+const emptySignals: WeeklySignals = {
+  completedDelegations: 0,
+  openDelegations: 0,
+  overdueDeadlines: 0,
+  highRisks: 0,
+  staleWaiting: 0,
+  decisionsMade: 0,
 };
-
-async function collectSignals(): Promise<WeeklySignals> {
-  const [delegations, deadlines, risks, waiting] = await Promise.all([
-    tinyStorage.get<DelegationSignal[]>('module.tiny-delegation.items'),
-    tinyStorage.get<DeadlineSignal[]>('module.tiny-deadline.items'),
-    tinyStorage.get<RiskSignal[]>('module.tiny-risk.items'),
-    tinyStorage.get<WaitingSignal[]>('module.tiny-waiting.items'),
-  ]);
-  const now = Date.now();
-
-  return {
-    completedDelegations: (delegations ?? []).filter((item) => item.status === 'done').length,
-    openDelegations: (delegations ?? []).filter((item) => item.status === 'open').length,
-    overdueDeadlines: (deadlines ?? []).filter((item) => item.status === 'open' && item.dueAt && new Date(item.dueAt).getTime() < now).length,
-    highRisks: (risks ?? []).filter((item) => item.status === 'open' && (item.score ?? 0) >= 12).length,
-    staleWaiting: (waiting ?? []).filter((item) => item.status === 'open' && ageDays(item.updatedAt ?? item.createdAt, now) >= 5).length,
-    decisionsMade: 0,
-  };
-}
 
 export function WeeklyReviewModulePage() {
   const { locale, direction } = useI18n();
-  const [signals, setSignals] = useState<WeeklySignals>({
-    completedDelegations: 0,
-    openDelegations: 0,
-    overdueDeadlines: 0,
-    highRisks: 0,
-    staleWaiting: 0,
-    decisionsMade: 0,
-  });
+  const [signals, setSignals] = useState<WeeklySignals>(emptySignals);
 
   useEffect(() => {
     let active = true;
     const refresh = async () => {
-      const next = await collectSignals();
-      if (active) setSignals(next);
+      const managerSignals = await collectManagerSignals(tinyStorage);
+      if (!active) return;
+      setSignals({
+        completedDelegations: managerSignals.completedDelegations,
+        openDelegations: managerSignals.openDelegations,
+        overdueDeadlines: managerSignals.overdueDeadlines,
+        highRisks: managerSignals.highRisks,
+        staleWaiting: managerSignals.staleWaiting,
+        decisionsMade: 0,
+      });
     };
+
     void refresh();
-    const events = ['tinymanager:delegation-changed', 'tinymanager:deadline-changed', 'tinymanager:risk-changed', 'tinymanager:waiting-changed'];
-    events.forEach((name) => window.addEventListener(name, refresh));
+    MANAGER_SIGNAL_EVENTS.forEach((eventName) => window.addEventListener(eventName, refresh));
     return () => {
       active = false;
-      events.forEach((name) => window.removeEventListener(name, refresh));
+      MANAGER_SIGNAL_EVENTS.forEach((eventName) => window.removeEventListener(eventName, refresh));
     };
   }, []);
 
