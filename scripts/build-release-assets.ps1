@@ -6,9 +6,12 @@ $ErrorActionPreference = 'Stop'
 $OutputDirectory = [IO.Path]::GetFullPath($OutputDirectory)
 New-Item -ItemType Directory -Force -Path $OutputDirectory | Out-Null
 
-$version = (node -p "require('./package.json').version").Trim()
+$package = Get-Content 'package.json' -Raw | ConvertFrom-Json
+$version = ([string]$package.version).Trim()
 if ([string]::IsNullOrWhiteSpace($version)) { throw 'Could not resolve TinyManager version from package.json.' }
 $tag = "v$version"
+
+if (-not (Test-Path 'dist/index.html')) { throw 'The verified dist output is missing. Build TinyManager before packaging.' }
 
 $webZip = Join-Path $OutputDirectory "TinyManager-Web-v$version.zip"
 if (Test-Path $webZip) { Remove-Item $webZip -Force }
