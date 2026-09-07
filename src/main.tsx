@@ -5,6 +5,7 @@ import { I18nProvider } from './core/i18n';
 import { ThemeProvider } from './core/theme';
 import './styles.css';
 import './assistant.css';
+import './rtl-ui-fix.css';
 
 const root = document.getElementById('root');
 
