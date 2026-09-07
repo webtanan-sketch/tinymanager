@@ -1,4 +1,8 @@
-import { calculateProjectHealth, type ProjectHealthResult } from 'tiny-project-health';
+import {
+  calculateProjectHealth,
+  type ProjectHealthInput,
+  type ProjectHealthResult,
+} from 'tiny-project-health';
 import type { TinyManagerStorage } from './types';
 
 export const MANAGER_SIGNAL_EVENTS = [
@@ -45,6 +49,7 @@ export interface ManagerSignals {
   staleWaiting: number;
   followUpsDue: number;
   openDelegations: number;
+  completedDelegations: number;
   staleDelegations: number;
   overdueDelegations: number;
   openDeadlines: number;
@@ -54,6 +59,7 @@ export interface ManagerSignals {
   highRisks: number;
   criticalRisks: number;
   attentionTotal: number;
+  healthInput: ProjectHealthInput;
   health: ProjectHealthResult;
 }
 
@@ -82,7 +88,9 @@ export async function collectManagerSignals(
     storage.get<WaitingSignal[]>(STORAGE_KEYS.waiting),
   ]);
 
-  const openDelegations = (delegations ?? []).filter((item) => item.status === 'open');
+  const delegationItems = delegations ?? [];
+  const openDelegations = delegationItems.filter((item) => item.status === 'open');
+  const completedDelegations = delegationItems.filter((item) => item.status === 'done').length;
   const openDeadlines = (deadlines ?? []).filter((item) => item.status === 'open');
   const openRisks = (risks ?? []).filter((item) => item.status === 'open');
   const openWaiting = (waiting ?? []).filter((item) => item.status === 'open');
@@ -115,19 +123,21 @@ export async function collectManagerSignals(
   const highRisks = openRisks.filter((item) => (item.score ?? 0) >= 12).length;
   const criticalRisks = openRisks.filter((item) => (item.score ?? 0) >= 20).length;
 
-  const health = calculateProjectHealth({
+  const healthInput: ProjectHealthInput = {
     overdueDeadlines,
     highRisks,
     staleWaiting,
     staleDelegations,
     daysSinceUpdate: 0,
-  });
+  };
+  const health = calculateProjectHealth(healthInput);
 
   return {
     openWaiting: openWaiting.length,
     staleWaiting,
     followUpsDue,
     openDelegations: openDelegations.length,
+    completedDelegations,
     staleDelegations,
     overdueDelegations,
     openDeadlines: openDeadlines.length,
@@ -137,6 +147,7 @@ export async function collectManagerSignals(
     highRisks,
     criticalRisks,
     attentionTotal: overdueDeadlines + highRisks + followUpsDue + overdueDelegations,
+    healthInput,
     health,
   };
 }
