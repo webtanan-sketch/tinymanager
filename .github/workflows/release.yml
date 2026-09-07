@@ -38,12 +38,13 @@ jobs:
         shell: pwsh
         run: npm run build
 
-      - name: Validate PowerShell launchers
+      - name: Validate PowerShell scripts
         shell: pwsh
         run: |
           $files = @(
             'packaging/windows/Start-TinyManager.ps1',
-            'scripts/bootstrap-source.ps1'
+            'scripts/bootstrap-source.ps1',
+            'scripts/build-release-assets.ps1'
           )
           foreach ($file in $files) {
             [void][ScriptBlock]::Create((Get-Content $file -Raw))
@@ -65,7 +66,7 @@ jobs:
 
           try {
             $ready = $false
-            for ($i = 0; $i -lt 20; $i++) {
+            for ($i = 0; $i -lt 24; $i++) {
               Start-Sleep -Milliseconds 250
               try {
                 $response = Invoke-WebRequest 'http://127.0.0.1:47831/' -UseBasicParsing -TimeoutSec 1
@@ -93,55 +94,17 @@ jobs:
         id: assets
         shell: pwsh
         run: |
-          $version = node -p "require('./package.json').version"
-          $tag = "v$version"
-          $releaseDir = Join-Path $PWD 'release'
-          New-Item -ItemType Directory -Force -Path $releaseDir | Out-Null
-
-          $webZip = Join-Path $releaseDir "TinyManager-Web-v$version.zip"
-          Compress-Archive -Path 'dist/*' -DestinationPath $webZip -Force
-
-          $portableName = "TinyManager-Windows-Portable-v$version"
-          $portableRoot = Join-Path $releaseDir $portableName
-          New-Item -ItemType Directory -Force -Path (Join-Path $portableRoot 'app') | Out-Null
-          Copy-Item -Path 'dist/*' -Destination (Join-Path $portableRoot 'app') -Recurse -Force
-          Copy-Item 'packaging/windows/Start-TinyManager.ps1' $portableRoot
-          Copy-Item 'packaging/windows/Start-TinyManager.cmd' $portableRoot
-          Copy-Item 'packaging/windows/README-PORTABLE.txt' $portableRoot
-          $portableZip = Join-Path $releaseDir "$portableName.zip"
-          Compress-Archive -Path "$portableRoot/*" -DestinationPath $portableZip -Force
-
-          $iscc = (Get-Command ISCC.exe -ErrorAction SilentlyContinue).Source
-          if (-not $iscc) { $iscc = 'C:\Program Files (x86)\Inno Setup 6\ISCC.exe' }
-          if (-not (Test-Path $iscc)) { throw 'ISCC.exe was not found after installing Inno Setup.' }
-          & $iscc "/DAppVersion=$version" 'packaging/windows/TinyManager.iss'
-          if ($LASTEXITCODE -ne 0) { throw 'Inno Setup compilation failed.' }
-
-          $setup = Join-Path $releaseDir "TinyManager-Setup-v$version.exe"
-          if (-not (Test-Path $setup)) { throw "Expected setup asset not found: $setup" }
-
-          $sourcePs = Join-Path $releaseDir "TinyManager-Source-Installer-v$version.ps1"
-          $sourceSh = Join-Path $releaseDir "TinyManager-Source-Installer-v$version.sh"
-          Copy-Item 'scripts/bootstrap-source.ps1' $sourcePs
-          Copy-Item 'scripts/bootstrap-source.sh' $sourceSh
-          Copy-Item 'config/repositories.json' (Join-Path $releaseDir "TinyManager-Repositories-v$version.json")
-
-          $assets = @($setup, $portableZip, $webZip, $sourcePs, $sourceSh)
-          $checksums = foreach ($asset in $assets) {
-            $hash = (Get-FileHash -Algorithm SHA256 $asset).Hash.ToLowerInvariant()
-            "$hash  $([IO.Path]::GetFileName($asset))"
-          }
-          $checksumPath = Join-Path $releaseDir 'SHA256SUMS.txt'
-          $checksums | Set-Content -Path $checksumPath -Encoding ASCII
-
-          "version=$version" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
-          "tag=$tag" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
-          "setup=$setup" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
-          "portable=$portableZip" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
-          "web=$webZip" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
-          "source_ps=$sourcePs" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
-          "source_sh=$sourceSh" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
-          "checksums=$checksumPath" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          ./scripts/build-release-assets.ps1 -OutputDirectory (Join-Path $PWD 'release') | Write-Host
+          $manifest = Get-Content 'release/release-manifest.json' -Raw | ConvertFrom-Json
+          "version=$($manifest.version)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          "tag=$($manifest.tag)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          "setup=$($manifest.setup)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          "portable=$($manifest.portable)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          "web=$($manifest.web)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          "source_ps=$($manifest.sourcePs)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          "source_sh=$($manifest.sourceSh)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          "registry=$($manifest.registry)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
+          "checksums=$($manifest.checksums)" | Out-File -FilePath $env:GITHUB_OUTPUT -Append
 
       - name: Create or update GitHub Release
         shell: pwsh
@@ -154,28 +117,41 @@ jobs:
           WEB: ${{ steps.assets.outputs.web }}
           SOURCE_PS: ${{ steps.assets.outputs.source_ps }}
           SOURCE_SH: ${{ steps.assets.outputs.source_sh }}
+          REGISTRY: ${{ steps.assets.outputs.registry }}
           CHECKSUMS: ${{ steps.assets.outputs.checksums }}
         run: |
           $notes = @"
           ## TinyManager $env:TAG
 
-          First public Alpha release with all nine modules integrated into TinyManager Core, Tiny AI/TLE, shared people/projects, live manager dashboard, backup/restore and verified PWA offline support.
+          First public Alpha release with all nine modules integrated into TinyManager Core, Tiny AI/TLE, Shared People/Projects, live manager dashboard, backup/restore, and verified PWA offline support.
 
           ### Easiest Windows download
           Download **TinyManager-Setup-$env:TAG.exe** and run it. Node.js and Python are not required.
 
-          ### Portable
+          ### Portable Windows
           Download **TinyManager-Windows-Portable-$env:TAG.zip**, extract it, then run `Start-TinyManager.cmd`.
 
-          ### Developers / source workspace
-          The source installers discover Core, all nine module repositories and the shared Jalali engine from the canonical repository registry, download the pinned revisions and build Core automatically.
+          ### Web / self-hosted PWA
+          Download **TinyManager-Web-$env:TAG.zip** and serve its contents over HTTPS or localhost.
 
-          This is an Alpha release; keep backups of important data.
+          ### Developers / source workspace
+          The source installers read the canonical repository registry, discover Core, all nine module repositories, and the shared Jalali engine, download the pinned revisions, and build Core automatically.
+
+          This is an Alpha release. Keep backups of important data.
           "@
           $notesPath = Join-Path $env:RUNNER_TEMP 'release-notes.md'
           $notes | Set-Content -Path $notesPath -Encoding UTF8
 
-          $assets = @($env:SETUP, $env:PORTABLE, $env:WEB, $env:SOURCE_PS, $env:SOURCE_SH, $env:CHECKSUMS)
+          $assets = @(
+            $env:SETUP,
+            $env:PORTABLE,
+            $env:WEB,
+            $env:SOURCE_PS,
+            $env:SOURCE_SH,
+            $env:REGISTRY,
+            $env:CHECKSUMS
+          )
+
           gh release view $env:TAG *> $null
           if ($LASTEXITCODE -eq 0) {
             gh release upload $env:TAG @assets --clobber
