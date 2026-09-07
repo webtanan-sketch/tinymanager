@@ -4,6 +4,7 @@ import App from './App';
 import { I18nProvider } from './core/i18n';
 import { ThemeProvider } from './core/theme';
 import './styles.css';
+import './fonts.css';
 import './assistant.css';
 import './rtl-ui-fix.css';
 
