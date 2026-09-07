@@ -154,7 +154,7 @@ function AppShell({ children }: { children: ReactNode }) {
         </nav>
         <div className="tm-sidebar-spacer" />
         <div className="tm-sidebar-card"><ShieldCheck size={19} /><div><strong>{t('privacy')}</strong><span>{t('localFirstDescription')}</span></div></div>
-        <div className="tm-sidebar-version">v0.1.0-alpha.2</div>
+        <div className="tm-sidebar-version">v0.1.0-alpha.3</div>
       </aside>
 
       <main className="tm-main">
