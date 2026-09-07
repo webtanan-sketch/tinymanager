@@ -1,5 +1,5 @@
 param(
-  [int]$PreferredPort = 4173,
+  [int]$PreferredPort = 47831,
   [switch]$NoBrowser
 )
 
@@ -18,44 +18,34 @@ $stateDirectory = Join-Path $env:LOCALAPPDATA 'TinyManager'
 New-Item -ItemType Directory -Force -Path $stateDirectory | Out-Null
 $portFile = Join-Path $stateDirectory 'server-port.txt'
 
-function Test-LocalPort {
+function Test-TinyManagerEndpoint {
   param([int]$Port)
-  $client = New-Object System.Net.Sockets.TcpClient
   try {
-    $task = $client.ConnectAsync('127.0.0.1', $Port)
-    if (-not $task.Wait(180)) { return $false }
-    return $client.Connected
+    $response = Invoke-WebRequest "http://127.0.0.1:$Port/" -UseBasicParsing -TimeoutSec 1
+    return $response.StatusCode -eq 200 -and $response.Headers['X-TinyManager-Server'] -eq '1'
   } catch {
     return $false
-  } finally {
-    $client.Dispose()
   }
+}
+
+if (Test-TinyManagerEndpoint $PreferredPort) {
+  Set-Content -Path $portFile -Value $PreferredPort -Encoding ASCII
+  if (-not $NoBrowser) { Start-Process "http://127.0.0.1:$PreferredPort/#/" }
+  exit 0
 }
 
 if (Test-Path $portFile) {
-  $saved = 0
-  if ([int]::TryParse((Get-Content $portFile -Raw).Trim(), [ref]$saved) -and (Test-LocalPort $saved)) {
-    if (-not $NoBrowser) { Start-Process "http://127.0.0.1:$saved/#/" }
-    exit 0
-  }
   Remove-Item $portFile -Force -ErrorAction SilentlyContinue
 }
 
-$listener = $null
-$port = $PreferredPort
-for ($candidate = $PreferredPort; $candidate -lt ($PreferredPort + 30); $candidate++) {
-  try {
-    $attempt = [System.Net.Sockets.TcpListener]::new([System.Net.IPAddress]::Loopback, $candidate)
-    $attempt.Start()
-    $listener = $attempt
-    $port = $candidate
-    break
-  } catch {
-    if ($attempt) { $attempt.Stop() }
-  }
+$listener = [System.Net.Sockets.TcpListener]::new([System.Net.IPAddress]::Loopback, $PreferredPort)
+try {
+  $listener.Start()
+} catch {
+  throw "TinyManager requires its fixed localhost port $PreferredPort to preserve local IndexedDB data, but that port is already in use by another application. Close that application and start TinyManager again."
 }
 
-if (-not $listener) { throw 'TinyManager could not find an available localhost port.' }
+$port = $PreferredPort
 Set-Content -Path $portFile -Value $port -Encoding ASCII
 
 $mimeTypes = @{
@@ -92,7 +82,8 @@ function Write-Response {
     "Content-Type: $ContentType`r`n" +
     "Content-Length: $($Body.Length)`r`n" +
     "Connection: close`r`n" +
-    "X-Content-Type-Options: nosniff`r`n"
+    "X-Content-Type-Options: nosniff`r`n" +
+    "X-TinyManager-Server: 1`r`n"
   foreach ($key in $ExtraHeaders.Keys) { $headers += "$key`: $($ExtraHeaders[$key])`r`n" }
   $headers += "`r`n"
 
