@@ -20,13 +20,12 @@ import {
   Send,
   Settings,
   ShieldCheck,
-  Sparkles,
   Sun,
   TriangleAlert,
   Upload,
   type LucideIcon,
 } from 'lucide-react';
-import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { HashRouter, Navigate, NavLink, Route, Routes } from 'react-router-dom';
 import { TinyAssistantCommandBar } from './components/TinyAssistantCommandBar';
 import { createBackup, downloadBackupFile, restoreBackup } from './core/backup';
@@ -46,10 +45,10 @@ import { RiskModulePage } from './modules/RiskModulePage';
 import { WaitingModulePage } from './modules/WaitingModulePage';
 import { WeeklyReviewModulePage } from './modules/WeeklyReviewModulePage';
 import { moduleCatalog } from './modules/catalog';
+import { DashboardPage } from './pages/DashboardPage';
 import { LanguageCenterPage } from './pages/LanguageCenterPage';
 
 const registry = new TinyManagerModuleRegistry(moduleCatalog, tinyStorage);
-const integratedModuleIds = new Set(moduleCatalog.map((module) => module.id));
 
 const moduleIcons: Record<string, LucideIcon> = {
   Scale,
@@ -108,7 +107,7 @@ function App() {
     <HashRouter>
       <AppShell>
         <Routes>
-          <Route path="/" element={<Dashboard enabledIds={modules.enabledIds} />} />
+          <Route path="/" element={<DashboardPage enabledIds={modules.enabledIds} />} />
           <Route path="/modules" element={<ModulesPage enabledIds={modules.enabledIds} ready={modules.ready} onSetEnabled={modules.setEnabled} />} />
           <Route path="/modules/decision-matrix" element={guard('tiny-decision-matrix', <DecisionMatrixModulePage />)} />
           <Route path="/modules/meeting-cost" element={guard('tiny-meeting-cost', <MeetingCostModulePage />)} />
@@ -172,46 +171,6 @@ function AppShell({ children }: { children: ReactNode }) {
         <div className="tm-content">{children}</div>
       </main>
     </div>
-  );
-}
-
-function Dashboard({ enabledIds }: { enabledIds: Set<string> }) {
-  const { locale, t } = useI18n();
-  const enabledModules = useMemo(() => moduleCatalog.filter((module) => enabledIds.has(module.id)), [enabledIds]);
-  const today = tinyDateService.format(new Date(), locale, 'long');
-
-  return (
-    <div className="tm-page">
-      <section className="tm-page-heading"><div><span className="tm-eyebrow">{t('overview')}</span><h1>{t('dashboard')}</h1><p>{today}</p></div><div className="tm-status-pill"><span className="tm-live-dot" />{t('ready')}</div></section>
-      <section className="tm-hero-card">
-        <div className="tm-hero-copy"><span className="tm-eyebrow tm-eyebrow-light">Tiny AI</span><h2>{t('appTagline')}</h2><p>{locale === 'fa' ? 'فرمان کوتاه بنویس؛ TinyManager ماژول درست را پیدا می‌کند، داده لازم را می‌پرسد و قبل از تغییرات تأیید می‌گیرد.' : 'Write a short command. TinyManager finds the right module, asks only for missing data, and confirms before mutations.'}</p><NavLink className="tm-primary-button" to="/modules"><Puzzle size={18} />{t('moduleManager')}</NavLink></div>
-        <div className="tm-hero-visual" aria-hidden="true"><div className="tm-orbit tm-orbit-one" /><div className="tm-orbit tm-orbit-two" /><div className="tm-hero-icon"><Sparkles size={34} /></div></div>
-      </section>
-      <section className="tm-stats-grid">
-        <StatCard icon={Puzzle} label={t('enabledModules')} value={String(enabledModules.length)} />
-        <StatCard icon={Boxes} label={t('allModules')} value={String(moduleCatalog.length)} />
-        <StatCard icon={Database} label={t('localFirst')} value="IndexedDB" compact />
-        <StatCard icon={CalendarDays} label={t('dateEngine')} value={locale === 'fa' ? 'جلالی' : 'Gregorian'} compact />
-      </section>
-      <section className="tm-section"><div className="tm-section-heading"><div><span className="tm-eyebrow">{t('enabledModules')}</span><h2>{t('today')}</h2></div><NavLink to="/modules" className="tm-text-link">{t('allModules')} <ArrowUpRight size={17} /></NavLink></div><div className="tm-module-grid">{(enabledModules.length ? enabledModules : moduleCatalog.slice(0, 3)).map((module) => <ModulePreviewCard key={module.id} module={module} preview={!enabledIds.has(module.id)} />)}</div></section>
-    </div>
-  );
-}
-
-function StatCard({ icon: Icon, label, value, compact = false }: { icon: LucideIcon; label: string; value: string; compact?: boolean }) {
-  return <article className="tm-stat-card"><div className="tm-stat-icon"><Icon size={20} /></div><div><span>{label}</span><strong className={compact ? 'is-compact' : ''}>{value}</strong></div></article>;
-}
-
-function ModulePreviewCard({ module, preview }: { module: TinyManagerModuleManifest; preview: boolean }) {
-  const { locale, t } = useI18n();
-  const Icon = moduleIcons[module.icon] ?? Puzzle;
-  const canOpen = !preview && integratedModuleIds.has(module.id);
-  return (
-    <article className="tm-module-card">
-      <div className="tm-module-card-top"><div className="tm-module-icon"><Icon size={21} /></div><span className={`tm-badge tm-badge-${module.maturity}`}>{preview ? t('comingNext') : t('enabled')}</span></div>
-      <h3>{module.name[locale]}</h3><p>{module.description[locale]}</p>
-      <div className="tm-module-card-footer"><span>{module.id}</span>{canOpen ? <NavLink to={module.route}><ArrowUpRight size={17} /></NavLink> : <a href={module.repository} target="_blank" rel="noreferrer"><ArrowUpRight size={17} /></a>}</div>
-    </article>
   );
 }
 
