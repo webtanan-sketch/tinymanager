@@ -16,9 +16,8 @@ permissions:
   contents: read
 
 jobs:
-  windows-package:
-    runs-on: windows-latest
-
+  build:
+    runs-on: ubuntu-latest
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -29,16 +28,35 @@ jobs:
           node-version: '22'
 
       - name: Use npm 11.6
-        shell: pwsh
         run: npm install --global npm@11.6.0
 
       - name: Install dependencies
-        shell: pwsh
         run: npm install
 
       - name: Build verified PWA
-        shell: pwsh
         run: npm run build
+
+      - name: Upload verified dist
+        uses: actions/upload-artifact@v4
+        with:
+          name: tinymanager-dist
+          path: dist
+          if-no-files-found: error
+          retention-days: 1
+
+  windows-package:
+    needs: build
+    runs-on: windows-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download verified dist
+        uses: actions/download-artifact@v4
+        with:
+          name: tinymanager-dist
+          path: dist
 
       - name: Validate PowerShell scripts
         shell: pwsh
@@ -72,7 +90,7 @@ jobs:
               Start-Sleep -Milliseconds 250
               try {
                 $response = Invoke-WebRequest 'http://127.0.0.1:47831/' -UseBasicParsing -TimeoutSec 1
-                if ($response.StatusCode -eq 200 -and $response.Content -match 'TinyManager') {
+                if ($response.StatusCode -eq 200 -and $response.Headers['X-TinyManager-Server'] -eq '1' -and $response.Content -match 'TinyManager') {
                   $ready = $true
                   break
                 }
@@ -82,6 +100,7 @@ jobs:
               Receive-Job $job -Keep | Write-Host
               throw 'TinyManager localhost launcher smoke test failed.'
             }
+            Write-Host 'TinyManager localhost launcher smoke test passed.'
           } finally {
             Stop-Job $job -ErrorAction SilentlyContinue
             Remove-Job $job -Force -ErrorAction SilentlyContinue
